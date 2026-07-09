@@ -24,10 +24,10 @@ Anyone cloning the repo elsewhere can omit this to use Playwright's default (`%L
 
 ## Usage
 
-A runnable example lives at [`scripts/screenshot_example.py`](../scripts/screenshot_example.py):
+A runnable example lives at [`examples/playwright/screenshot.py`](../examples/playwright/screenshot.py):
 
 ```bash
-uv run python scripts/screenshot_example.py https://example.com out.png
+uv run python examples/playwright/screenshot.py https://example.com out.png
 ```
 
 Minimal in-code usage:

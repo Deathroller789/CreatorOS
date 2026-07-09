@@ -1,4 +1,4 @@
-# Python / uv
+# --- Python / uv ---
 .venv/
 __pycache__/
 *.py[cod]
@@ -7,16 +7,38 @@ __pycache__/
 build/
 dist/
 
-# Environments & secrets
+# --- Node (only if a local install ever happens; MCP servers run via npx cache) ---
+node_modules/
+
+# --- Environments & secrets ---
 .env
 .env.*
+*.key
+*.pem
 
-# Caches
+# --- Caches ---
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 
-# OS / editor
+# --- SQLite ---
+# Volatile side-files are ALWAYS ignored (never meaningful to track).
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite3-journal
+# NOTE: whether the main SQLite DB file (*.db / *.sqlite3) is committed is an open
+# architectural decision (source-of-truth vs. runtime state). It will be decided in
+# the SQLite decision record before the DB is introduced. See docs/decisions/.
+
+# --- Local run outputs ---
+screenshot.png
+/output/
+
+# --- Claude Code (keep .claude/ tracked; ignore only machine-local settings) ---
+.claude/settings.local.json
+
+# --- OS / editor ---
 .DS_Store
 Thumbs.db
 .vscode/

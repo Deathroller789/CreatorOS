@@ -1,7 +1,7 @@
 """Minimal Playwright example: capture a screenshot of a page.
 
 Run with:
-    uv run python scripts/screenshot_example.py https://example.com out.png
+    uv run python examples/playwright/screenshot.py https://example.com out.png
 """
 
 from __future__ import annotations

@@ -15,12 +15,10 @@ dev = [
 # Match the pinned interpreter (see .python-version).
 target-version = "py313"
 line-length = 88
-src = ["scripts", "tools"]
-exclude = [
-    ".venv",
-    "database",
-    "research",
-]
+src = ["examples", "scripts", "tools"]
+# No custom `exclude`: Ruff's built-in defaults already skip .venv and generated
+# artifacts (build/, dist/, __pycache__, .*_cache/, node_modules). We intentionally
+# do NOT exclude any source/content dirs (database, research, etc.) so they are linted.
 
 [tool.ruff.lint]
 select = [
