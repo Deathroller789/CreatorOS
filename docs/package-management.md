@@ -27,3 +27,16 @@ CreatorOS uses **[uv](https://docs.astral.sh/uv/)** as its default Python packag
 - `pyproject.toml` holds project metadata and dependencies; `uv` manages it — prefer `uv add`/`uv remove` over hand-editing the `dependencies` list.
 - `uv.lock` **is committed** to the repo for reproducible installs. Don't add it to `.gitignore`.
 - The virtual environment lives in `.venv/` (git-ignored) and is created/managed automatically by `uv`.
+
+## Linting & formatting
+
+CreatorOS uses **[Ruff](https://docs.astral.sh/ruff/)** for both linting and formatting. It's installed as a dev dependency and configured in `pyproject.toml` under `[tool.ruff]`.
+
+| Task | Command |
+| --- | --- |
+| Lint the whole repo | `uv run ruff check .` |
+| Lint and auto-fix | `uv run ruff check --fix .` |
+| Format all files | `uv run ruff format .` |
+| Check formatting without writing | `uv run ruff format --check .` |
+
+Run `uv run ruff check . && uv run ruff format --check .` before committing.

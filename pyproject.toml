@@ -3,3 +3,36 @@ name = "creator-os"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
+]
+
+[tool.ruff]
+# Match the pinned interpreter (see .python-version).
+target-version = "py313"
+line-length = 88
+src = ["scripts", "tools"]
+exclude = [
+    ".venv",
+    "database",
+    "research",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "UP",   # pyupgrade (modern syntax)
+    "B",    # flake8-bugbear (likely bugs)
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
