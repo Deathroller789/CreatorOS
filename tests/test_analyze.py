@@ -244,5 +244,39 @@ class CliTests(unittest.TestCase):
             self.assertEqual(main(["analyze-channel", URL]), 0)
 
 
+class VideoLimitTests(unittest.TestCase):
+    def test_fetch_channel_respects_limit(self):
+        page = {
+            "channel_id": "UC123",
+            "channel": "Demo",
+            "uploader_id": "@demo",
+            "entries": [{"id": f"vid{i}"} for i in range(5)],
+        }
+        with mock.patch(
+            "creatoros.analyze.yt_dlp.YoutubeDL", return_value=_mock_ydl(page)
+        ) as mock_ydl_cls:
+            _, videos = analyze.fetch_channel(URL, limit=2)
+
+        # only `limit` videos are fetched...
+        self.assertEqual(len(videos), 2)
+        # ...and the limit is pushed down to yt-dlp rather than filtered after the fact
+        flat_opts = mock_ydl_cls.call_args_list[0][0][0]
+        self.assertEqual(flat_opts["playlistend"], 2)
+
+    def test_cli_passes_limit_through(self):
+        with mock.patch("creatoros.cli.analyze.run", return_value=Path("x")) as run:
+            main(["analyze-channel", URL, "--limit", "3"])
+        self.assertEqual(run.call_args.kwargs["limit"], 3)
+
+    def test_cli_defaults_to_default_limit(self):
+        with mock.patch("creatoros.cli.analyze.run", return_value=Path("x")) as run:
+            main(["analyze-channel", URL])
+        self.assertEqual(run.call_args.kwargs["limit"], analyze.DEFAULT_VIDEO_LIMIT)
+
+    def test_cli_rejects_limit_below_one(self):
+        with self.assertRaises(SystemExit):
+            main(["analyze-channel", URL, "--limit", "0"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,9 @@ from yt_dlp.utils import DownloadError
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = REPO_ROOT / "database" / "creatoros.db"
 OUTPUT_DIR = REPO_ROOT / "output" / "reports"
-LATEST_N = 5
+# Sample size per channel. Correlations over a handful of videos are noise; the
+# intelligence module needs a real sample. Override with `--limit`.
+DEFAULT_VIDEO_LIMIT = 50
 
 
 class AnalyzeError(Exception):
@@ -33,13 +35,15 @@ def _videos_url(channel_url: str) -> str:
     return f"{url}/videos"
 
 
-def fetch_channel(channel_url: str) -> tuple[dict, list[dict]]:
-    """Return ``(channel, videos)`` for the latest ``LATEST_N`` uploads of a channel."""
+def fetch_channel(
+    channel_url: str, limit: int = DEFAULT_VIDEO_LIMIT
+) -> tuple[dict, list[dict]]:
+    """Return ``(channel, videos)`` for the channel's latest ``limit`` uploads."""
     flat_opts = {
         "quiet": True,
         "skip_download": True,
         "extract_flat": "in_playlist",
-        "playlistend": LATEST_N,
+        "playlistend": limit,
     }
     try:
         with yt_dlp.YoutubeDL(flat_opts) as ydl:
@@ -56,7 +60,7 @@ def fetch_channel(channel_url: str) -> tuple[dict, list[dict]]:
         "url": page.get("channel_url") or page.get("uploader_url") or channel_url,
     }
 
-    entries = [e for e in (page.get("entries") or []) if e][:LATEST_N]
+    entries = [e for e in (page.get("entries") or []) if e][:limit]
     videos: list[dict] = []
     detail_opts = {"quiet": True, "skip_download": True, "noplaylist": True}
     with yt_dlp.YoutubeDL(detail_opts) as ydl:
@@ -272,12 +276,13 @@ def write_report(
 
 def run(
     channel_url: str,
+    limit: int = DEFAULT_VIDEO_LIMIT,
     db_path: Path = DB_PATH,
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
     """Fetch a channel, store it, and write a report. Returns the report path."""
-    print(f"Analyzing {channel_url} ...")
-    channel, videos = fetch_channel(channel_url)
+    print(f"Analyzing {channel_url} (limit {limit}) ...")
+    channel, videos = fetch_channel(channel_url, limit=limit)
     print(
         f"Channel: {channel['title']} ({channel['channel_id']}) - "
         f"{len(videos)} videos fetched"
