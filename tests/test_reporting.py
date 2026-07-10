@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from creatoros.intelligence.findings import (
 )
 from creatoros.reporting import (
     DESCRIPTIVE_DISCLAIMER,
+    JsonRenderer,
     MarkdownRenderer,
     build_metadata,
 )
@@ -113,6 +115,34 @@ class MarkdownTests(unittest.TestCase):
 
     def test_render_is_deterministic(self) -> None:
         again = MarkdownRenderer().render(self.findings, self.metadata)
+        self.assertEqual(self.out, again)
+
+
+class JsonTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.findings = _findings()
+        self.metadata = build_metadata(self.findings, now=NOW)
+        self.out = JsonRenderer().render(self.findings, self.metadata)
+
+    def test_output_is_valid_json_with_the_expected_shape(self) -> None:
+        doc = json.loads(self.out)
+        self.assertEqual(set(doc), {"notice", "metadata", "findings"})
+        self.assertEqual(doc["notice"], DESCRIPTIVE_DISCLAIMER)
+        self.assertEqual(doc["metadata"]["channel_id"], "UC1")
+        self.assertEqual(doc["findings"]["sample_size"], 3)
+
+    def test_carries_every_finding_losslessly(self) -> None:
+        doc = json.loads(self.out)
+        ranking = doc["findings"]["outliers"]["ranking"]
+        self.assertEqual([o["video_id"] for o in ranking], ["v3", "v1", "v2"])
+        self.assertEqual(ranking[0]["performance_index"], 2.0)
+        self.assertEqual(doc["findings"]["outliers"]["baseline_views_per_day"], 100.0)
+        self.assertEqual(doc["findings"]["cadence"]["regularity"], "regular")
+        feature = doc["findings"]["titles"]["features"][0]
+        self.assertEqual(feature["metric"], "title_length")
+
+    def test_render_is_deterministic(self) -> None:
+        again = JsonRenderer().render(self.findings, self.metadata)
         self.assertEqual(self.out, again)
 
 
