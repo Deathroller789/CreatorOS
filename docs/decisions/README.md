@@ -64,6 +64,6 @@ Keep them short. A record that fits on one screen gets read; a 2,000-word one do
 | # | Title | Status |
 |---|-------|--------|
 | [0001](0001-memory-architecture.md) | Memory architecture: SQLite as source of truth, Memory MCP disabled | Accepted |
+| [ADR-002](adr-002-youtube-extraction-stack.md) | YouTube extraction stack (yt-dlp + youtube-transcript-api) | Accepted |
 
-_Future ADRs will appear here as decisions are made (likely first: Why SQLite, Why yt-dlp,
-Why Playwright — authored when we formally make each call, not before)._
+_ADRs are authored when a decision is actually made, not before._
