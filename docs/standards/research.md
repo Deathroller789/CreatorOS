@@ -47,8 +47,12 @@ the six sections above:
 4. **Winner** — the single recommended choice.
 5. **Tradeoffs** — what the winner gives up.
 6. **Future Risks** — what could make this the wrong call later.
-7. **Confidence** — High / Medium / Low, with why.
-8. **Recommendation** — the actionable decision. If adopted, it also gets an ADR.
+7. **Exit Strategy** — *if this project dies tomorrow, how hard is it to replace?* State a
+   replacement difficulty (None / Low / Medium / High) and the escape path. A dependency we
+   cannot leave is a liability, no matter how good. Reject or wrap anything that can't rate
+   at least Low.
+8. **Confidence** — High / Medium / Low, with why.
+9. **Recommendation** — the actionable decision. If adopted, it also gets an ADR.
 
 "No evaluation, no install." These evaluations live in `research/technology/`.
 

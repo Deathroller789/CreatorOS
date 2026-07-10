@@ -65,5 +65,8 @@ Keep them short. A record that fits on one screen gets read; a 2,000-word one do
 |---|-------|--------|
 | [0001](0001-memory-architecture.md) | Memory architecture: SQLite as source of truth, Memory MCP disabled | Accepted |
 | [ADR-002](adr-002-youtube-extraction-stack.md) | YouTube extraction stack (yt-dlp + youtube-transcript-api) | Accepted |
+| [ADR-003](adr-003-why-stdlib-sqlite3-no-orm.md) | Why stdlib `sqlite3` (no ORM) | Accepted |
+| [ADR-004](adr-004-why-argparse.md) | Why `argparse` (no CLI framework) | Accepted |
+| [ADR-005](adr-005-why-playwright-library-not-mcp.md) | Why the Playwright library (not the MCP) | Accepted |
 
 _ADRs are authored when a decision is actually made, not before._

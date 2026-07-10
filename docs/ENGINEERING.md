@@ -52,9 +52,13 @@ recommendation — default to *wrapping* existing infrastructure). Format in
 ### 2. Every dependency must earn its place
 
 Before installing any dependency, write an evaluation containing: **Problem, Options,
-Comparison, Winner, Tradeoffs, Future Risks, Confidence, Recommendation.** Evaluations
-live in [research/technology/](../research/technology/); the format is fixed in
+Comparison, Winner, Tradeoffs, Future Risks, Exit Strategy, Confidence, Recommendation.**
+Evaluations live in [research/technology/](../research/technology/); the format is fixed in
 [standards/research.md](standards/research.md). **If no evaluation exists, do not install.**
+
+**Exit Strategy is mandatory:** every adopted dependency must answer *"if this project dies
+tomorrow, how hard is it to replace?"* Keep every dependency behind a thin wrapper we own,
+and keep canonical data in a portable store. Our data must outlive our tools.
 
 ### 3. Use the simplest possible solution
 
