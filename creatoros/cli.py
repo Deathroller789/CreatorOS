@@ -25,7 +25,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "analyze-channel":
-        analyze.run(args.url)
+        try:
+            analyze.run(args.url)
+        except analyze.AnalyzeError as exc:
+            print(f"error: {exc}")
+            return 1
         return 0
 
     parser.error(f"unknown command: {args.command}")

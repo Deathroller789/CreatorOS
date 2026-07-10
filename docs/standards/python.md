@@ -40,3 +40,15 @@ Rules for Python code in CreatorOS. These are enforced, not suggested.
 - Reusable tool code lives under `tools/<tool>/`. Runnable demos live under
   `examples/<tool>/`, never in `scripts/`. One-off operational scripts live in
   `scripts/`. See [folders](folders.md).
+
+## Testing
+
+- Tests live in `tests/`, named `test_*.py`. Run them with:
+  ```bash
+  uv run python -m unittest discover -s tests
+  ```
+- Use the **standard-library `unittest`** for the MVP — no test-framework dependency
+  until one is justified by a written evaluation. Mock network/external calls
+  (`unittest.mock`); tests must not hit the network.
+- Every feature ships with tests (Definition of Done). Aim for a small number of
+  high-value tests over exhaustive coverage.

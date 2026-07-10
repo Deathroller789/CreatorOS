@@ -13,11 +13,16 @@ from pathlib import Path
 
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
+from yt_dlp.utils import DownloadError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = REPO_ROOT / "database" / "creatoros.db"
 OUTPUT_DIR = REPO_ROOT / "output" / "reports"
 LATEST_N = 5
+
+
+class AnalyzeError(Exception):
+    """Raised when a channel cannot be analyzed (bad URL, network failure, etc.)."""
 
 
 def _videos_url(channel_url: str) -> str:
@@ -36,8 +41,11 @@ def fetch_channel(channel_url: str) -> tuple[dict, list[dict]]:
         "extract_flat": "in_playlist",
         "playlistend": LATEST_N,
     }
-    with yt_dlp.YoutubeDL(flat_opts) as ydl:
-        page = ydl.extract_info(_videos_url(channel_url), download=False)
+    try:
+        with yt_dlp.YoutubeDL(flat_opts) as ydl:
+            page = ydl.extract_info(_videos_url(channel_url), download=False)
+    except DownloadError as exc:
+        raise AnalyzeError(f"could not fetch channel {channel_url!r}: {exc}") from exc
 
     channel = {
         "channel_id": page.get("channel_id") or page.get("id"),
@@ -56,9 +64,13 @@ def fetch_channel(channel_url: str) -> tuple[dict, list[dict]]:
             video_id = entry.get("id")
             if not video_id:
                 continue
-            info = ydl.extract_info(
-                f"https://www.youtube.com/watch?v={video_id}", download=False
-            )
+            try:
+                info = ydl.extract_info(
+                    f"https://www.youtube.com/watch?v={video_id}", download=False
+                )
+            except DownloadError as exc:
+                print(f"  - skipping video {video_id}: {exc}")
+                continue
             videos.append(
                 {
                     "video_id": video_id,
@@ -258,7 +270,11 @@ def write_report(
     return path
 
 
-def run(channel_url: str) -> Path:
+def run(
+    channel_url: str,
+    db_path: Path = DB_PATH,
+    output_dir: Path = OUTPUT_DIR,
+) -> Path:
     """Fetch a channel, store it, and write a report. Returns the report path."""
     print(f"Analyzing {channel_url} ...")
     channel, videos = fetch_channel(channel_url)
@@ -274,9 +290,9 @@ def run(channel_url: str) -> Path:
         if transcript:
             transcripts.append(transcript)
 
-    save(channel, videos, transcripts)
-    report = write_report(channel, videos, transcripts)
-    print(f"Saved to {DB_PATH}")
+    save(channel, videos, transcripts, db_path=db_path)
+    report = write_report(channel, videos, transcripts, output_dir=output_dir)
+    print(f"Saved to {db_path}")
     print(f"Transcripts: {len(transcripts)}/{len(videos)}")
     print(f"Report: {report}")
     return report
