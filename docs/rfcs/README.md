@@ -58,4 +58,8 @@ genuinely open (e.g. *"Should CreatorOS use DuckDB instead of SQLite?"*).
 
 ## Index
 
-_No RFCs yet. RFCs are written for real, open decisions — never hypothetically._
+| # | Title | Status |
+|---|-------|--------|
+| [RFC-001](rfc-001-topic-representation.md) | How should CreatorOS represent topics? | Proposed |
+
+_RFCs are written for real, open decisions — never hypothetically._
