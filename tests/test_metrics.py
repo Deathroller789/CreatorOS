@@ -30,9 +30,10 @@ VIDEOS = [
 
 
 class RegistryTests(unittest.TestCase):
-    def test_metrics_are_discovered_without_being_imported(self) -> None:
-        # Importing the package alone must populate the registry: adding a metric
-        # module is additive, and nothing has to be wired up by hand.
+    def test_importing_the_package_populates_the_registry(self) -> None:
+        # The explicit import list in creatoros/metrics/__init__.py registers every
+        # active metric. A new metric is one function plus one import line —
+        # explicit registration, not filesystem auto-discovery (ADR-006).
         self.assertLessEqual(
             {
                 "upload_age_days",

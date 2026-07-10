@@ -28,6 +28,12 @@ Raw (SQLite)  ->  Derived (creatoros/metrics/)  ->  Analysis (intelligence modul
 The layer is a small engine with a registry. A metric is a **pure function** that declares
 its `scope`, its `unit`, and the names it `depends_on`. The engine owns everything else.
 
+**Metrics are deterministic transformations of existing data — they never create new
+facts, only new representations of facts.** This is the line between the Derived layer and
+the Analysis layer downstream: an LLM summary, a topic interpretation, or a recommendation
+is *intelligence*, not a metric, and belongs in the intelligence module, never here.
+Everything in this layer must be reproducible from raw rows by pure arithmetic.
+
 - **Metrics are pure.** They receive plain values and return a value. No I/O.
 - **Metrics never access SQLite.** Nothing in `creatoros/metrics/` imports `sqlite3`; a test
   asserts this.
@@ -36,8 +42,11 @@ its `scope`, its `unit`, and the names it `depends_on`. The engine owns everythi
   and rejects cycles.
 - **Metrics declare units** (`days`, `views/day`, `ratio`, `characters`, `words`), so a
   report can label a number without guessing what it means.
-- **Metrics are discovered automatically.** Importing `creatoros.metrics` imports every
-  module in the package, and each decorated function registers itself.
+- **Metrics are registered explicitly.** Each decorated function self-registers when its
+  module is imported, and the active modules are imported by hand in a one-line list in
+  `creatoros/metrics/__init__.py`. A file's presence in the package does *not* activate it
+  — drafts, experiments, and archived metrics can live alongside without leaking into the
+  registry. (See "Alternatives" for why not automatic discovery.)
 - **Metrics compose.** `performance_index` depends on `views_per_day` and
   `median_views_per_day`; it does not recompute either.
 - **The analysis layer only requests metrics.** It calls `compute(...)` and reads values. It
@@ -61,6 +70,19 @@ age-normalized metrics pure and their tests deterministic.
   it gives no ordering, no composition, and nothing stops a helper from opening the
   database or an analysis module from computing a ratio inline. The rule would live in a
   document instead of in the code.
+- **Automatic discovery (`pkgutil.iter_modules`).** The engine's first draft imported every
+  module in the package so metrics registered with zero ceremony. Rejected: it makes the
+  *filesystem* the source of truth for what is active, which cuts directly against this
+  project's core principles — explicit over magic, and the repository (not a directory
+  listing) as the source of truth. A half-finished `draft.py` would break
+  `import creatoros.metrics` for the whole system; an `archive.py` holding an old duplicate
+  name would raise at import; an `experimental.py` would silently enter the production
+  registry and shift the baseline. Automatic discovery earns its keep when extensions come
+  from third parties who cannot edit a central manifest, or when the set is large and
+  volatile — neither is true here, where every metric is first-party and there are a
+  handful. The explicit one-line import trades a line of boilerplate per module for the
+  guarantee that nothing registers without a human saying so, and a single greppable list
+  of what is live. The end state (see Consequences) is more explicit still, not less.
 - **Materialize into a `video_metrics` table.** Rejected *for now*: it adds a schema
   migration and a staleness problem — a video's view count changes on every re-ingest, so
   every derived row would need invalidating. At 50 videos per channel the computation is
@@ -94,6 +116,11 @@ age-normalized metrics pure and their tests deterministic.
 - Metrics deferred to later, with no code today: `caps_ratio`, `question_mark`,
   `emoji_count`, `word_count`, and `momentum_score`
   ([#15](https://github.com/Deathroller789/CreatorOS/issues/15)). Each is additive.
+- **Metric-metadata roadmap** ([#19](https://github.com/Deathroller789/CreatorOS/issues/19)),
+  not built here: per-metric `description`, `category`, and `version`; a `MetricDefinition`
+  dataclass replacing the decorator's keyword arguments (the fully-explicit end state, no
+  import-time side effects); and a `creatoros metrics explain` command that reads them. Each
+  is additive and none crosses the Raw → Derived → Analysis boundary.
 - **Revisit trigger:** the first metric that is too slow to recompute on every read, or the
   first need to query derived values in SQL across channels. Then materialize — the metric
   functions themselves would not change, only where the engine puts their output.

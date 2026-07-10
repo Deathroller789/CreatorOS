@@ -2,7 +2,8 @@
 
 The intelligence layer asks for metrics; it never computes them, and never reads raw
 fields to derive anything. Adding a metric means adding one decorated pure function to a
-module in this package — nothing else changes, and nothing else needs to know.
+module in this package, then importing that module in the explicit list below — a file's
+presence on disk never activates a metric on its own.
 
     from creatoros.metrics import compute
     derived = compute(channel, videos, now=datetime.now(UTC))
@@ -11,9 +12,13 @@ module in this package — nothing else changes, and nothing else needs to know.
 
 from __future__ import annotations
 
-import importlib
-import pkgutil
-
+# Explicit registry: every active metric module is listed here by hand. Importing a
+# module runs its @metric decorators, which self-register. A module that is NOT in this
+# list stays inert — drafts, experiments, and archived metrics can live in the package
+# without ever entering the registry. Explicit over automatic discovery (ADR-006:
+# the repository, not a directory listing, is the source of truth for what is active).
+# Import order is irrelevant — dependencies resolve at compute time, not import time.
+from creatoros.metrics import channel, video  # noqa: F401
 from creatoros.metrics.engine import (
     Computed,
     Metric,
@@ -31,13 +36,3 @@ __all__ = [
     "metric",
     "registry",
 ]
-
-
-def _discover() -> None:
-    """Import every metric module so that importing this package fills the registry."""
-    for module in pkgutil.iter_modules(__path__):
-        if module.name != "engine":
-            importlib.import_module(f"{__name__}.{module.name}")
-
-
-_discover()
