@@ -14,7 +14,9 @@ Write an ADR for any important, hard-to-reverse decision:
 - any architectural choice that shapes how the system is built.
 
 Research (in `research/`) is *why we looked*; an ADR is *what we chose*. A research report
-that leads to a binding choice gets an ADR that links back to it.
+that leads to a binding choice gets an ADR that links back to it. When a decision is
+significant but **not yet made**, it starts as an [RFC](../rfcs/) (open for comment) and
+becomes an ADR once accepted.
 
 ## Naming
 

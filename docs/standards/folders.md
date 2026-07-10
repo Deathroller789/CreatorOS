@@ -9,7 +9,8 @@ something goes, this document decides — and if it can't, update this document.
 | --- | --- | --- |
 | `docs/` | Human-facing documentation | Prose about the system, not code. |
 | `docs/standards/` | Binding rules (this file, `python.md`, …) | Rules, never tutorials. |
-| `docs/decisions/` | Architecture Decision Records (ADRs) | One ADR per important decision; `adr-NNN-*.md`. |
+| `docs/decisions/` | Architecture Decision Records (ADRs) | One ADR per decision made; `adr-NNN-*.md`. |
+| `docs/rfcs/` | Requests for Comments (RFCs) | One RFC per open/undecided proposal; `rfc-NNN-*.md`. |
 | `docs/modules/` | Per-module design documents | One file per module: `NNN-<module>.md`. Design, not code. |
 | `research/` | Research reports | Categorized into subfolders (below). Must follow [research](research.md). |
 | `research/technology/` | Technology, library & stack evaluations | One file per subject considered. |

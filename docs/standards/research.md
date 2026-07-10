@@ -19,6 +19,20 @@ Every research report **must** contain these sections, in this order:
 5. **Open Questions** — what we still don't know, and what we deliberately did not check.
 6. **Next Actions** — concrete follow-ups, each a single verb-first line.
 
+## Reuse audit
+
+Before building or expanding any capability, and before adopting a dependency, first audit
+what already exists (ENGINEERING.md principle 1). A reuse audit is short:
+
+1. **Existing solutions** — open-source projects, MCP servers, and libraries that already
+   solve most of the problem.
+2. **Maintenance status** — active? recent releases? healthy community?
+3. **Pros / cons** — per option.
+4. **Adopt / wrap / build** — the recommendation. **Default to wrapping** existing
+   infrastructure unless building ourselves gives CreatorOS a clear competitive advantage.
+
+The reuse audit precedes — and may fold into — the dependency evaluation below.
+
 ## Dependency & technology evaluations
 
 Evaluating a dependency, library, or tool before installing it (required by

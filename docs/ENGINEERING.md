@@ -44,6 +44,11 @@ OCR, vector databases, embeddings, or RAG — those come from existing software.
 Our competitive advantage **is** research workflow, analysis, pattern detection, decision
 making, synthesis, and insight generation. **Build only the intelligence layer.**
 
+Before building or expanding any ingestion/infrastructure capability, produce a **reuse
+audit** (existing solutions, maintenance status, pros/cons, and an adopt / wrap / build
+recommendation — default to *wrapping* existing infrastructure). Format in
+[standards/research.md](standards/research.md).
+
 ### 2. Every dependency must earn its place
 
 Before installing any dependency, write an evaluation containing: **Problem, Options,
@@ -68,11 +73,19 @@ Never rely on chat history or hidden memory. Never save memory automatically. Ev
 important decision must exist inside the repository. The repository should be sufficient
 for a new engineer to understand the project.
 
-### 6. Architecture Decision Records
+### 6. RFCs and ADRs
 
-When a real engineering decision is made, create an ADR in [decisions/](decisions/)
-(e.g. Why SQLite, Why Playwright, Why yt-dlp, Why DuckDB, Why Chroma). Never create
-hypothetical ADRs — only document real decisions.
+Significant decisions have two stages:
+
+- **RFC (Request for Comments)** — a decision *not yet made*: a proposal with pros, cons,
+  evidence, and a recommendation, open for discussion. Prevents premature decisions.
+  Lives in [rfcs/](rfcs/).
+- **ADR (Architecture Decision Record)** — a decision *already made*. Lives in
+  [decisions/](decisions/).
+
+Flow: research → RFC (when the choice is open or contested) → ADR (once accepted). Small,
+clear decisions skip the RFC and go straight to an ADR. **Never create hypothetical RFCs
+or ADRs — only real, open decisions and real, made ones.**
 
 ### 7. Context efficiency
 

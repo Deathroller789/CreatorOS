@@ -20,6 +20,7 @@ predictable. When in doubt, favor clarity over brevity.
 | Python packages (dirs) | `snake_case` | `tools/youtube/` |
 | Documentation files | `snake_case.md` | `technology/sqlite.md` |
 | Decision records (ADRs) | `adr-NNN-kebab-title.md` | `adr-002-why-yt-dlp.md` |
+| Requests for comments (RFCs) | `rfc-NNN-kebab-title.md` | `rfc-001-duckdb-vs-sqlite.md` |
 | Module design docs | `NNN-kebab-title.md` | `001-youtube-intelligence.md` |
 | Directories (general) | `snake_case` | `research/technology/` |
 | Env variables | `UPPER_SNAKE_CASE` | `PLAYWRIGHT_BROWSERS_PATH` |
