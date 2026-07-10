@@ -21,12 +21,24 @@ def main(argv: list[str] | None = None) -> int:
         help="Fetch a YouTube channel + latest videos and write a report",
     )
     analyze_channel.add_argument("url", help="YouTube channel URL (any form)")
+    analyze_channel.add_argument(
+        "--limit",
+        type=int,
+        default=analyze.DEFAULT_VIDEO_LIMIT,
+        metavar="N",
+        help=(
+            "how many of the channel's latest videos to fetch "
+            f"(default: {analyze.DEFAULT_VIDEO_LIMIT})"
+        ),
+    )
 
     args = parser.parse_args(argv)
 
     if args.command == "analyze-channel":
+        if args.limit < 1:
+            parser.error("--limit must be at least 1")
         try:
-            analyze.run(args.url)
+            analyze.run(args.url, limit=args.limit)
         except analyze.AnalyzeError as exc:
             print(f"error: {exc}")
             return 1
