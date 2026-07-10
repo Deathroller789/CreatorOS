@@ -27,9 +27,11 @@ node_modules/
 *.db-shm
 *.db-journal
 *.sqlite3-journal
-# NOTE: whether the main SQLite DB file (*.db / *.sqlite3) is committed is an open
-# architectural decision (source-of-truth vs. runtime state). It will be decided in
-# the SQLite decision record before the DB is introduced. See docs/decisions/.
+# NOTE: whether the main SQLite DB file is committed is an open architectural decision
+# (source-of-truth vs. runtime state), to be settled in a SQLite ADR. For the MVP we
+# treat it as runtime state and do not commit it.
+database/*.db
+database/*.sqlite3
 
 # --- Local run outputs ---
 screenshot.png
