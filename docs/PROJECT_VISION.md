@@ -2,7 +2,7 @@
 
 _First draft, written by the assistant from the current state of CreatorOS. This document
 is owned by the human and is meant to be revised. It defines direction and how we decide —
-not how anything is built._
+not how anything is built. For **how** we build, see [ENGINEERING.md](ENGINEERING.md)._
 
 ## Mission
 

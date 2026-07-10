@@ -19,8 +19,29 @@ Every research report **must** contain these sections, in this order:
 5. **Open Questions** — what we still don't know, and what we deliberately did not check.
 6. **Next Actions** — concrete follow-ups, each a single verb-first line.
 
+## Dependency & technology evaluations
+
+Evaluating a dependency, library, or tool before installing it (required by
+[ENGINEERING.md](../ENGINEERING.md) principle 2) uses this specific structure instead of
+the six sections above:
+
+1. **Problem** — what we need solved, and the constraints.
+2. **Options** — the candidates considered (including "build it ourselves" and "reuse an
+   existing project / MCP server").
+3. **Comparison** — a table across the options on the axes that matter (maintenance,
+   accuracy, speed, long-term reliability — not popularity), with sources.
+4. **Winner** — the single recommended choice.
+5. **Tradeoffs** — what the winner gives up.
+6. **Future Risks** — what could make this the wrong call later.
+7. **Confidence** — High / Medium / Low, with why.
+8. **Recommendation** — the actionable decision. If adopted, it also gets an ADR.
+
+"No evaluation, no install." These evaluations live in `research/technology/`.
+
 ## Rules
 
+- **Reuse first.** Always check for an existing project/MCP/library that solves ≥90% of
+  the problem before proposing custom code (ENGINEERING.md principle 1).
 - **Recommend, don't survey.** A comparison must end in one named winner and the reason.
   "It depends" is only acceptable with the specific conditions spelled out.
 - **Ignore popularity.** Stars, downloads, and hype are not evidence. Maintenance,

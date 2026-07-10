@@ -6,7 +6,7 @@ predictable. When in doubt, favor clarity over brevity.
 ## General
 
 - **Lowercase always** for files and directories, except the few deliberate all-caps
-  root documents (`README.md`, `CLAUDE.md`, `PROJECT_VISION.md`).
+  root documents (`README.md`, `CLAUDE.md`, `PROJECT_VISION.md`, `ENGINEERING.md`).
 - **No spaces** in any file or directory name, ever. Words are separated by `_` or `-`
   per the rules below.
 - Names describe content, not format ("channel_metadata", not "data2").
