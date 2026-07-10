@@ -33,8 +33,13 @@ and the [product review](../../research/reports/next_milestone_product_review.md
   what normal looks like.
 - **Top Outlier, not "top video."** Report **expected vs actual vs difference**, e.g. "2.7x
   baseline", not a raw leaderboard.
-- **Report effect size *and* sample size, every time.** At n≈50 (and far less per topic),
-  findings are suggestive, not proof. The report says so.
+- **Every conclusion carries evidence, confidence, and sample size.** All three, every time,
+  or it is not reported: the derived numbers behind the claim, a plain-language confidence
+  qualifier tied to the effect and the sample, and the n it rests on. At n≈50 findings are
+  suggestive, not proof — and the report says exactly that.
+- **Prefer rankings to thresholds.** "These five sit furthest above baseline, by this much"
+  is more honest at small n than a cutoff that manufactures a hard line the data does not
+  have. Use a threshold only where a decision truly needs a binary, and state it.
 - **Descriptive, never predictive.** "These over-performed and share these traits" — never
   "use this title." The module explains what happened; it does not promise outcomes.
 - **Deterministic, read-only, no new dependencies, no LLM in v1.** Stdlib over SQLite. An
@@ -42,6 +47,29 @@ and the [product review](../../research/reports/next_milestone_product_review.md
   intelligence, not a metric ([ADR-006](../decisions/adr-006-raw-derived-analysis.md)).
 - **The module requests metrics; it never computes them.** Adding a metric must not require
   editing this module.
+
+## Things Channel Intelligence must never do
+
+Hard invariants. Unlike the non-goals below — features simply not in scope yet — these never
+become acceptable. They are what keep the intelligence honest.
+
+- **Never mutate data.** Strictly read-only. It never writes, updates, or deletes a raw row
+  or a derived value; it reads the database and the metrics engine and emits a report.
+  Nothing flows back.
+- **Never state a conclusion without evidence, confidence, and sample size.** All three, or
+  it is not reported. No bare assertion, no number without its n.
+- **Never predict or prescribe.** It reports what happened, not what to do — never "use this
+  title," "post on Tuesdays," or any promise of a future outcome.
+- **Never compute a metric inline.** If a quantity is missing it becomes a metric in the
+  engine ([ADR-006](../decisions/adr-006-raw-derived-analysis.md)), not a helper here.
+- **Never derive from raw fields.** Analysis reads *derived* metrics only. The sole contact
+  with raw data is passing rows *into* the engine; the module never does arithmetic on them.
+- **Never invent a fact.** Every reported number is reproducible from stored data by the
+  deterministic path. A later synthesis layer may phrase findings in prose, but it reads the
+  facts — it never manufactures them.
+- **Never treat rank as significance.** Being first in a ranking proves nothing on its own;
+  every ranking travels with its effect size and sample size, so position is not mistaken for
+  certainty.
 
 ## The questions
 
@@ -55,10 +83,12 @@ Six questions, grouped by theme. The examples in #13 and the
 - *Means:* which videos beat, or missed, the channel's own age-normalized baseline by enough
   that it is unlikely to be noise — both tails, because underperformers are as informative as
   hits.
-- *Honest answer:* per outlier, **expected** (`median_views_per_day × upload_age_days`) vs
-  **actual** (raw views) vs **difference**, plus `performance_index` ("3.4x baseline"). A
-  "true" outlier clears a **threshold**, not merely the top of a sorted list — see Open
-  Questions. Always with the sample size.
+- *Honest answer:* videos **ranked** by `performance_index`, each shown as **expected**
+  (`median_views_per_day × upload_age_days`) vs **actual** (raw views) vs **difference**
+  ("3.4x baseline"), reporting both tails. Prefer the ranking to a hard outlier/not cutoff —
+  at n≈50 the ranking carries the honest amount of information, where a threshold would
+  invent a line the data does not have. Always with the sample size and a confidence
+  qualifier.
 - *Inputs:* `performance_index`, `views_per_day`, `median_views_per_day`, `upload_age_days`
   — **all exist today.**
 - *How it misleads:* a very fresh video can post a huge `views_per_day` spike that will not
@@ -72,8 +102,8 @@ Six questions, grouped by theme. The examples in #13 and the
 - *Honest answer:* within a topic group (Q4/Q5), the videos with `performance_index < 1`,
   reported with the group's size. Only stated where the group is large enough to mean
   anything.
-- *Inputs:* `performance_index` (exists) **+ a topic assignment (new — see Q4/Q5).** Depends
-  on topics being solid, so this is **v2.**
+- *Inputs:* `performance_index` (exists) **+ a topic assignment (new — see Q4/Q5).**
+  **Deferred behind the topics RFC** ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)).
 - *How it misleads:* tiny per-topic n; "topic" can smuggle in format or length differences.
 
 ### Titles
@@ -120,8 +150,9 @@ Six questions, grouped by theme. The examples in #13 and the
 - *Inputs:* **new** — tokenization, stopwords, frequency counting. Note the shape mismatch:
   the engine produces one scalar per record, and a term-frequency table is neither
   per-video nor a scalar. Whether this lives *in* the engine as a channel-scope metric
-  returning a table, or as a separate derived component the module builds, is a real design
-  question — see Open Questions.
+  returning a table, or as a separate derived component, is exactly what the **topics RFC**
+  ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)) must decide. Deferred until
+  it does.
 - *How it misleads:* raw frequency is not importance; transcripts outweigh titles by volume;
   stopword quality and casing/stemming decisions change the answer; a brand name trivially
   tops every list.
@@ -134,7 +165,9 @@ Six questions, grouped by theme. The examples in #13 and the
   terms, and stating plainly that the grouping is lexical, not semantic. Embeddings/vector
   search are deferred ([Chroma evaluation](../../research/technology/chroma.md)).
 - *Inputs:* builds on Q4 tokenization **+ new clustering logic.** The most speculative
-  question here; a lightweight version, or deferral to **v2**, is likely.
+  question here; **deferred behind the topics RFC**
+  ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)) with the rest of topic
+  intelligence.
 - *How it misleads:* lexical clusters overfit shared words and understand no meaning;
   single-video "clusters" mean nothing. Easy to oversell — so it is reported conservatively.
 
@@ -144,64 +177,68 @@ Six questions, grouped by theme. The examples in #13 and the
 | --- | --- | --- | --- |
 | Q1 Outliers (both tails) | `performance_index`, `views_per_day`, `median_views_per_day`, `upload_age_days` | **Ready now** | expected vs actual vs difference |
 | Q3 Cadence | `upload_interval_days` | **1 new metric** | median gap, spread, trend |
-| Q2 Title traits | `title_length`, `title_word_count` + `has_question_mark`, `caps_ratio`, `emoji_count`, `has_number` | **Roadmap [#19](https://github.com/Deathroller789/CreatorOS/issues/19)** | group difference + effect size + n |
-| Q4 Topics | tokenization + stopwords + frequency | **New (shape TBD)** | ranked terms + document frequency |
-| Q5 Clusters | Q4 + lexical clustering | **New / v2** | clusters with size + top terms |
-| Q6 Topic-conditioned underperformers | `performance_index` + topic assignment | **Depends on Q4/Q5 → v2** | under-baseline within a topic |
+| Q2 Title traits | `title_length`, `title_word_count` + `has_question_mark`, `caps_ratio`, `emoji_count`, `has_number` | **v1 — minimal now, deepens with [#19](https://github.com/Deathroller789/CreatorOS/issues/19)** | group difference + effect size + n |
+| Q4 Topics | tokenization + stopwords + frequency | **Deferred — topics RFC [#21](https://github.com/Deathroller789/CreatorOS/issues/21)** | ranked terms + document frequency |
+| Q5 Clusters | Q4 + lexical clustering | **Deferred — topics RFC [#21](https://github.com/Deathroller789/CreatorOS/issues/21)** | clusters with size + top terms |
+| Q6 Topic-conditioned underperformers | `performance_index` + topic assignment | **Deferred — topics RFC [#21](https://github.com/Deathroller789/CreatorOS/issues/21)** | under-baseline within a topic |
 
 ## Recommendation
 
 Build in the order the inputs are ready, so the first slice is honest and small.
 
-- **v1 — the first shippable insight report:** **Q1** (fully served by existing metrics —
-  the natural first cut), **Q3** (one new `upload_interval_days` metric), and **Q4** at the
-  frequency level (tokenization + stopwords). Add **Q2** once the roadmap title metrics from
-  [#19](https://github.com/Deathroller789/CreatorOS/issues/19) land — the analysis code is
-  the same regardless of how many title features exist, which is the point of the engine.
-- **v2:** **Q5** (clustering) and **Q6** (topic-conditioned underperformers), once topic
-  extraction is trustworthy.
+- **v1 — the first shippable insight report:** **Q1** (outliers, served entirely by existing
+  metrics), **Q2** (title characteristics), and **Q3** (cadence, one new `upload_interval_days`
+  metric). Q2 ships minimally on the two title metrics that exist today (`title_length`,
+  `title_word_count`) and deepens as the roadmap features in
+  [#19](https://github.com/Deathroller789/CreatorOS/issues/19) land — the analysis code does
+  not change when a feature is added, which is the point of the engine.
+- **Deferred — all topic intelligence (Q4, Q5, Q6).** None of it enters the module until an
+  **RFC defines how topics are represented** ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)).
+  Nothing that depends on topic extraction ships before that decision is made.
 
-Every new metric this surfaces (`upload_interval_days`, the Q2 title features, the topic
-machinery) is **additive to the engine** and, by [ADR-006](../decisions/adr-006-raw-derived-analysis.md),
-changes nothing in this module. That is the drift protection working as designed.
+Every metric v1 surfaces (`upload_interval_days`, the [#19](https://github.com/Deathroller789/CreatorOS/issues/19)
+title features) is **additive to the engine** and, by
+[ADR-006](../decisions/adr-006-raw-derived-analysis.md), changes nothing in this module. That
+is the drift protection working as designed.
 
-Confidence: **High** that Q1/Q3/Q4 are the right v1 and that the existing metrics already
-answer Q1. **Medium** on how much signal a single channel's ~50 videos holds for Q2 — which
+Confidence: **High** that Q1 + Q2 + Q3 are the right v1 and that existing metrics already
+answer Q1. **Medium** on how much title signal a single channel's ~50 videos holds — which
 the report will reveal honestly rather than hide.
 
 ## Open questions
 
-- **Is topic frequency a metric or a component?** The engine returns a scalar per record; a
-  term-frequency table fits neither the video nor the channel scalar shape. Extend the engine
-  to allow a channel-scope metric that returns a structure, or build topic extraction as a
-  separate derived component beside the engine? This is the one architectural decision this
-  design forces, and it deserves its own ADR before Q4 is built.
-- **Outlier threshold (Q1).** What makes a "true" outlier at n≈50 — a fixed multiple of
-  baseline (e.g. `performance_index ≥ 2`), or a spread-based rule (distance from the median in
-  median-absolute-deviations)? Pick one and state it in the report.
-- **How much of Q5 to attempt in v1** without embeddings — a crude lexical pass, or defer
-  entirely.
 - **Command name.** `analyze-channel` is ingestion. The intelligence command is unnamed;
   candidates include `analyze-patterns`, `channel-report`, `channel-intelligence`. Align with
   the [vision command list](../ENGINEERING.md) when chosen.
 - **Report location.** Alongside channel reports in `output/reports/`, or a separate
   `output/insights/`?
 
+Two earlier open questions are now settled. **Outlier presentation** is a **ranking**, not a
+threshold (see the rules) — a cutoff is added only if a later consumer needs a binary.
+**Topic representation** is escalated out of this document into its own **RFC**
+([#21](https://github.com/Deathroller789/CreatorOS/issues/21)); it is the gate for Q4–Q6, not
+a detail to settle inline.
+
 ## Non-goals
 
-- No predictions, no recommendations, no "you should" — descriptive only.
-- No LLM in v1; no new dependencies; no comment data (deferred, #2).
-- No cross-channel comparison — that is Sprint 4+ (`compare-channels`,
-  `discover-topic-gaps`), reachable only because these per-channel primitives come first.
-- The module never computes a metric inline. If a number is missing, it becomes a metric in
-  the engine, not a helper here.
+Scope not yet in the module — deferred, not forbidden (contrast the invariants above).
+
+- **All topic intelligence (Q4–Q6)** — gated behind the topics RFC
+  ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)).
+- **No LLM and no new dependencies in v1.** A later synthesis layer may turn these findings
+  into prose (Anthropic SDK direct, per the [reuse audit](../../research/technology/reuse_audit.md))
+  — it reads the facts, it does not replace them.
+- **No comment data** — deferred ([#2](https://github.com/Deathroller789/CreatorOS/issues/2)).
+- **No cross-channel comparison** — Sprint 4+ (`compare-channels`, `discover-topic-gaps`),
+  reachable only because these per-channel primitives come first.
 
 ## Next actions
 
-- Decide the **topic-shape** open question (metric vs component) and write its ADR — it
-  blocks Q4/Q5/Q6.
-- File the metrics this surfaces as additive to the engine: `upload_interval_days` (Q3) now;
-  the Q2 title features are already tracked in
-  [#19](https://github.com/Deathroller789/CreatorOS/issues/19).
+- **Write the topics RFC** ([#21](https://github.com/Deathroller789/CreatorOS/issues/21)) —
+  how topics are represented: the term-frequency table fits neither engine scalar shape
+  (metric-that-returns-a-structure vs a separate derived component), plus tokenization,
+  stopwords, and title-vs-transcript weighting. It gates Q4–Q6.
+- File `upload_interval_days` (Q3) as an additive engine metric; the Q2 title features are
+  already tracked in [#19](https://github.com/Deathroller789/CreatorOS/issues/19).
 - Once this design is accepted, open the v1 implementation issue against #13 scoped to **Q1 +
-  Q3 + Q4**, infrastructure-free and read-only, emitting one markdown insight report.
+  Q2 + Q3** — read-only, no new dependencies, emitting one markdown insight report.
