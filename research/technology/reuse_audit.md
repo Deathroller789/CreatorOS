@@ -127,6 +127,32 @@ we reuse the SDK rather than hand-rolling HTTP. (Gets an ADR at adoption.)
   APScheduler/Celery — no runtime dependency or broker needed.
 - **Dev tooling → uv, Ruff, stdlib `unittest` — settled** and already minimal.
 
+## Exit strategy
+
+Every adopted dependency must answer one question: **if this project dies tomorrow, how
+hard is it to replace?** A dependency we cannot leave is a liability, no matter how good.
+
+| Dependency | Replacement difficulty | Reason / escape path |
+| --- | --- | --- |
+| **yt-dlp** | **Low** | We use one narrow call (`extract_info`) behind our own wrapper. Substitutes exist (pytubefix, scrapetube, YouTube Data API). Collected data already lives in SQLite. |
+| **youtube-transcript-api** | **Low** | Tiny surface (`fetch`/`list`). yt-dlp's `--write-auto-subs` is a drop-in fallback. Transcripts already persisted. |
+| **Playwright** | **Low–Medium** | Standard, well-understood API; Selenium is a mature substitute. Medium only because JS-page flows are inherently browser-coupled. |
+| **SQLite** (stdlib `sqlite3`) | **Effectively none** | Public domain, format supported long-term; the DB is one portable file readable by any language/tool. Our SQL is plain. |
+| **argparse** | **None** | Standard library. |
+| **uv** | **Low** | `pyproject.toml` is a standard; pip/poetry can install from it. Only `uv.lock` is uv-specific, and it is regenerable. |
+| **Ruff** | **None** | Dev-time only. Removing it changes no runtime behavior. |
+| **Anthropic SDK** *(future)* | **Low** | Thin wrapper over a documented HTTP API; provider swapped behind our own `llm` interface. |
+| **Trafilatura** *(future)* | **Low** | Essentially one function; readability-lxml is a direct substitute. |
+
+**The structural reason all of these are Low:** every dependency sits behind a thin wrapper
+we own, and the canonical data lives in **SQLite — a single portable file**. No library's
+death is existential, because *our data outlives our tools*. Any adoption that cannot meet
+this bar (an external service, a framework that owns our control flow, a store we cannot
+export) should be rejected or wrapped until it can.
+
+This exit-strategy question is now a required section of every dependency evaluation
+(see `docs/standards/research.md`).
+
 ## Net effect on codebase size
 
 The stack is stdlib + ~4 runtime libraries in active use (yt-dlp, youtube-transcript-api,
