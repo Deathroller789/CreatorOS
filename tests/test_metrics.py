@@ -42,6 +42,9 @@ class RegistryTests(unittest.TestCase):
                 "title_length",
                 "title_word_count",
                 "median_views_per_day",
+                "median_upload_interval_days",
+                "max_upload_interval_days",
+                "upload_interval_cv",
             },
             set(registry()),
         )
@@ -110,6 +113,57 @@ class MetricTests(unittest.TestCase):
         derived = compute(CHANNEL, VIDEOS, now=NOW)
         self.assertEqual(derived.videos["v1"]["title_length"], len("Ten days old"))
         self.assertEqual(derived.videos["v1"]["title_word_count"], 3)
+
+
+class CadenceTests(unittest.TestCase):
+    def test_median_and_max_interval_over_regular_uploads(self) -> None:
+        # VIDEOS are 10, 20, 30 days old -> gaps of 10 and 10 days.
+        derived = compute(CHANNEL, VIDEOS, now=NOW)
+        self.assertEqual(derived.channel["median_upload_interval_days"], 10.0)
+        self.assertEqual(derived.channel["max_upload_interval_days"], 10.0)
+
+    def test_max_interval_finds_the_longest_dry_spell(self) -> None:
+        # Ages 5, 10, 40 days -> gaps of 30 (the dry spell) and 5.
+        videos = [
+            _video("a", "20260106", 100, "5 days old"),
+            _video("b", "20260101", 100, "10 days old"),
+            _video("c", "20251202", 100, "40 days old"),
+        ]
+        derived = compute(CHANNEL, videos, now=NOW)
+        self.assertEqual(derived.channel["max_upload_interval_days"], 30.0)
+        self.assertEqual(derived.channel["median_upload_interval_days"], 17.5)
+
+    def test_cv_is_zero_for_perfectly_regular_cadence(self) -> None:
+        derived = compute(CHANNEL, VIDEOS, now=NOW)  # gaps 10, 10
+        self.assertEqual(derived.channel["upload_interval_cv"], 0.0)
+
+    def test_cv_is_positive_for_erratic_cadence(self) -> None:
+        videos = [
+            _video("a", "20260106", 100, "5 days old"),
+            _video("b", "20260101", 100, "10 days old"),
+            _video("c", "20251202", 100, "40 days old"),
+        ]  # gaps 30, 5 -> uneven
+        derived = compute(CHANNEL, videos, now=NOW)
+        self.assertGreater(derived.channel["upload_interval_cv"], 0.0)
+
+    def test_cv_needs_at_least_two_gaps(self) -> None:
+        # Two videos -> one gap -> CV undefined; median/max still defined.
+        two = VIDEOS[:2]
+        derived = compute(CHANNEL, two, now=NOW)
+        self.assertIsNone(derived.channel["upload_interval_cv"])
+        self.assertEqual(derived.channel["median_upload_interval_days"], 10.0)
+
+    def test_cadence_is_none_with_a_single_dated_video(self) -> None:
+        derived = compute(CHANNEL, VIDEOS[:1], now=NOW)
+        self.assertIsNone(derived.channel["median_upload_interval_days"])
+        self.assertIsNone(derived.channel["max_upload_interval_days"])
+        self.assertIsNone(derived.channel["upload_interval_cv"])
+
+    def test_undated_videos_drop_out_of_cadence(self) -> None:
+        # The undated video is excluded; cadence is computed over the dated three.
+        videos = [*VIDEOS, _video("bad", "not-a-date", 100, "No date")]
+        derived = compute(CHANNEL, videos, now=NOW)
+        self.assertEqual(derived.channel["median_upload_interval_days"], 10.0)
 
 
 class EngineTests(unittest.TestCase):
