@@ -28,6 +28,12 @@ Evaluation = why we looked; decision = what we chose.
 
 ## Index
 
+### Cross-cutting
+
+| Subject | Role | Status |
+| --- | --- | --- |
+| [reuse_audit](reuse_audit.md) | Whole-stack reuse audit — the minimal maintainable stack (issue #7) | Complete |
+
 ### Data layer / stack
 
 | Technology | Role considered for | Status |
