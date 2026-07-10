@@ -8,6 +8,7 @@ touching intelligence.
 
 from __future__ import annotations
 
+from creatoros.reporting.json_renderer import JsonRenderer
 from creatoros.reporting.markdown import MarkdownRenderer
 from creatoros.reporting.metadata import (
     DESCRIPTIVE_DISCLAIMER,
@@ -20,6 +21,7 @@ from creatoros.reporting.renderer import Renderer
 __all__ = [
     "DESCRIPTIVE_DISCLAIMER",
     "REPORT_FORMAT_VERSION",
+    "JsonRenderer",
     "MarkdownRenderer",
     "Renderer",
     "ReportMetadata",
