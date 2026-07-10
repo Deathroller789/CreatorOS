@@ -46,7 +46,8 @@ Everything in this layer must be reproducible from raw rows by pure arithmetic.
   module is imported, and the active modules are imported by hand in a one-line list in
   `creatoros/metrics/__init__.py`. A file's presence in the package does *not* activate it
   — drafts, experiments, and archived metrics can live alongside without leaking into the
-  registry. (See "Alternatives" for why not automatic discovery.)
+  registry. **The activation of a metric is always an explicit engineering decision.** (See
+  "Alternatives" for why not automatic discovery.)
 - **Metrics compose.** `performance_index` depends on `views_per_day` and
   `median_views_per_day`; it does not recompute either.
 - **The analysis layer only requests metrics.** It calls `compute(...)` and reads values. It
