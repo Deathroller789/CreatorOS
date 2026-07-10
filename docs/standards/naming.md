@@ -18,9 +18,10 @@ predictable. When in doubt, favor clarity over brevity.
 | --- | --- | --- |
 | Python files & modules | `snake_case.py` | `transcript_extractor.py` |
 | Python packages (dirs) | `snake_case` | `tools/youtube/` |
-| Documentation files | `snake_case.md` | `stack_evaluation/sqlite.md` |
-| Decision records | `NNNN-kebab-title.md` | `0001-memory-architecture.md` |
-| Directories (general) | `snake_case` | `research/stack_evaluation/` |
+| Documentation files | `snake_case.md` | `technology/sqlite.md` |
+| Decision records (ADRs) | `adr-NNN-kebab-title.md` | `adr-002-why-yt-dlp.md` |
+| Module design docs | `NNN-kebab-title.md` | `001-youtube-intelligence.md` |
+| Directories (general) | `snake_case` | `research/technology/` |
 | Env variables | `UPPER_SNAKE_CASE` | `PLAYWRIGHT_BROWSERS_PATH` |
 | SQLite tables/columns | `snake_case` | `channel_stats` |
 | Branches | `kebab-case`, typed | `feat/youtube-transcripts` |

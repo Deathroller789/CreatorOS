@@ -54,6 +54,6 @@ system, which is explicitly not a near-term goal.
 
 ## Next Actions
 
-- Write `docs/decisions/0002-*.md` adopting SQLite, resolving schema layout, migration
-  approach, and the commit-the-`.db` question, before any database code is written.
+- Write an ADR adopting SQLite (schema layout, migration approach, and the commit-the-`.db`
+  question) before any database code is written.
 - Re-evaluate `sqlite-vec` vs. Chroma when the first embedding/search feature is scoped.

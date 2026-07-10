@@ -9,9 +9,14 @@ something goes, this document decides — and if it can't, update this document.
 | --- | --- | --- |
 | `docs/` | Human-facing documentation | Prose about the system, not code. |
 | `docs/standards/` | Binding rules (this file, `python.md`, …) | Rules, never tutorials. |
-| `docs/decisions/` | Decision records (ADRs) | One numbered record per binding decision. |
-| `research/` | Research reports | Must follow [research](research.md). |
-| `research/stack_evaluation/` | Technology/stack evaluations | One file per technology considered. |
+| `docs/decisions/` | Architecture Decision Records (ADRs) | One ADR per important decision; `adr-NNN-*.md`. |
+| `docs/modules/` | Per-module design documents | One file per module: `NNN-<module>.md`. Design, not code. |
+| `research/` | Research reports | Categorized into subfolders (below). Must follow [research](research.md). |
+| `research/technology/` | Technology, library & stack evaluations | One file per subject considered. |
+| `research/market/` | Market research | |
+| `research/competitors/` | Competitor research | |
+| `research/experiments/` | Experiment write-ups | |
+| `research/reports/` | General / one-off reports | |
 | `tools/` | Reusable capability code | One subfolder per tool: `tools/<tool>/`. |
 | `examples/` | Runnable demos | One subfolder per tool: `examples/<tool>/`. Demos live here, **not** in `scripts/`. |
 | `scripts/` | One-off operational scripts | Not libraries, not demos. |

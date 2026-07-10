@@ -1,36 +1,67 @@
-# Decision Records
+# Architecture Decision Records (ADRs)
 
-CreatorOS is an operating system, not a throwaway project. Every choice should still
-make sense a year from now. To keep that honest, **we write decisions down before we
-act on them.**
+CreatorOS is an operating system, not a throwaway project. Every important decision gets
+one record here, written **before** or **as** we act on it. Over time these ADRs become
+the memory of CreatorOS — *why* it is the way it is. We write them so a choice can be
+trusted, or overturned with evidence, a year from now.
 
-## When a record is required
+## When an ADR is required
 
-Write a decision record **before** you:
+Write an ADR for any important, hard-to-reverse decision:
 
-- add a dependency or library,
-- install an MCP server or external tool,
-- introduce a new service, storage engine, or data format, or
-- make any architectural choice that is hard to reverse.
+- adding a dependency, library, MCP server, or external tool,
+- introducing a new service, storage engine, or data format,
+- any architectural choice that shapes how the system is built.
 
-If you're only removing/downgrading something, a short record is still worth it so the
-reasoning isn't lost.
+Research (in `research/`) is *why we looked*; an ADR is *what we chose*. A research report
+that leads to a binding choice gets an ADR that links back to it.
+
+## Naming
+
+Going forward, ADRs are numbered Markdown files: `adr-NNN-kebab-title.md`
+(e.g. `adr-002-why-yt-dlp.md`). Numbers are sequential and never reused.
+
+> The existing record `0001-memory-architecture.md` predates this naming and is kept
+> as-is for now.
 
 ## Format
 
-Records are numbered Markdown files: `NNNN-short-title.md`. Each contains:
+Each ADR contains:
 
-1. **Status** — Proposed / Accepted / Superseded (link the superseding record).
-2. **Context** — the problem, and why we're deciding now.
-3. **Options considered** — at least two real alternatives, each with tradeoffs.
-4. **Decision** — what we chose.
-5. **Consequences** — what this makes easy, what it makes harder, and the
-   **revisit trigger** (the condition under which we'd reopen this).
+1. **Title** — `ADR-NNN: Why <X>?` (or the decision stated plainly).
+2. **Status** — Proposed / Accepted / Superseded (link the superseding ADR).
+3. **Context** — the problem and why we're deciding now.
+4. **Decision** — what we chose, in one or two sentences.
+5. **Alternatives** — the real options considered, each with why it lost.
+6. **Tradeoffs** — what we gain and what we give up.
+7. **Consequences** — what this makes easier/harder, and the **revisit trigger**.
 
 Keep them short. A record that fits on one screen gets read; a 2,000-word one doesn't.
+
+### Template
+
+```markdown
+# ADR-NNN: Why <X>?
+
+- **Status:** Proposed
+- **Date:** YYYY-MM-DD
+
+## Context
+
+## Decision
+
+## Alternatives
+
+## Tradeoffs
+
+## Consequences
+```
 
 ## Index
 
 | # | Title | Status |
 |---|-------|--------|
 | [0001](0001-memory-architecture.md) | Memory architecture: SQLite as source of truth, Memory MCP disabled | Accepted |
+
+_Future ADRs will appear here as decisions are made (likely first: Why SQLite, Why yt-dlp,
+Why Playwright — authored when we formally make each call, not before)._

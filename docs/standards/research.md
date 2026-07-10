@@ -32,6 +32,7 @@ Every research report **must** contain these sections, in this order:
   certainty.
 - **One topic per report.** If it spans multiple decisions, split it.
 
-Reports live in `research/`. Technology/stack evaluations live in
-`research/stack_evaluation/`. A report that leads to a binding choice also gets a record
-in `docs/decisions/`.
+Reports live in `research/`, sorted into its category subfolders (`technology/`,
+`market/`, `competitors/`, `experiments/`, `reports/`). Technology, library, and stack
+evaluations go in `research/technology/`. A report that leads to a binding choice also
+gets an ADR in `docs/decisions/`.
