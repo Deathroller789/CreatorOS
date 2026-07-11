@@ -47,6 +47,15 @@ creatoros export <channel> --format <fmt> [--output PATH]
   offline, cheap, and repeatable across formats. Keeping them separate commands is the
   point — it is why export is not a flag on `analyze`.
 
+**A renderer serializes, and only serializes.** Its sole responsibility is to turn a
+`ChannelFindings` and its metadata into bytes in one target format. It never computes a
+metric, infers or enriches a value, reorders, filters, or drops findings, or modifies the
+contract in any way — the findings it is handed are exactly the findings it serializes.
+Any format-specific rounding or layout is presentation, not a change to a fact. Anything
+that creates or alters a fact is intelligence and lives upstream, never in a renderer.
+This invariant is what lets one findings object fan out to many formats and stay
+comparable across all of them (the #29 regression guard depends on it).
+
 The exchange-vs-presentation distinction (JSON is the canonical exchange format; Markdown,
 HTML, and PDF are disposable presentation) is preserved as a property **of the format**,
 documented and enforced by JSON's versioned schema — not by the command verb. One command
