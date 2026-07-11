@@ -1,0 +1,5 @@
+# Golden regression fixtures are compared byte-for-byte, so they must stay LF on every
+# platform regardless of core.autocrlf (see issue #18). Scoped to these files only — a
+# repo-wide line-ending normalization is deliberately left as a separate change.
+tests/golden/channel_report.md   text eol=lf
+tests/golden/channel_report.json text eol=lf

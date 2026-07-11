@@ -1,0 +1,95 @@
+{
+  "notice": "This report is descriptive, not predictive.",
+  "metadata": {
+    "creatoros_version": "0.0.0-test",
+    "metric_engine_version": "0.0.0-test",
+    "report_format_version": 1,
+    "generated_at": "2026-01-11T00:00:00+00:00",
+    "channel_id": "UC1",
+    "channel_title": "Test Channel",
+    "sample_size": 3,
+    "confidence_summary": "low (evidence quality)"
+  },
+  "findings": {
+    "channel": {
+      "channel_id": "UC1",
+      "title": "Test Channel",
+      "handle": "@test",
+      "url": "https://x",
+      "subscriber_count": 1000
+    },
+    "sample_size": 3,
+    "outliers": {
+      "baseline_views_per_day": 100.0,
+      "sample_size": 3,
+      "ranking": [
+        {
+          "video_id": "v3",
+          "title": "Big | win",
+          "url": "https://y/v3",
+          "upload_age_days": 30.0,
+          "views_per_day": 200.0,
+          "performance_index": 2.0,
+          "difference_views_per_day": 100.0,
+          "is_recent": false
+        },
+        {
+          "video_id": "v1",
+          "title": "Short",
+          "url": "https://y/v1",
+          "upload_age_days": 10.0,
+          "views_per_day": 100.0,
+          "performance_index": 1.0,
+          "difference_views_per_day": 0.0,
+          "is_recent": false
+        },
+        {
+          "video_id": "v2",
+          "title": "Longer title",
+          "url": "https://y/v2",
+          "upload_age_days": 20.0,
+          "views_per_day": 50.0,
+          "performance_index": 0.5,
+          "difference_views_per_day": -50.0,
+          "is_recent": false
+        }
+      ],
+      "confidence": {
+        "level": "low",
+        "reason": "n=3: too small."
+      }
+    },
+    "titles": {
+      "sample_size": 3,
+      "above_n": 2,
+      "below_n": 1,
+      "features": [
+        {
+          "metric": "title_length",
+          "unit": "characters",
+          "above_mean": 5.0,
+          "below_mean": 12.0,
+          "difference": -7.0,
+          "effect_size": -0.9,
+          "above_n": 2,
+          "below_n": 1
+        }
+      ],
+      "confidence": {
+        "level": "low",
+        "reason": "n=3: too small."
+      }
+    },
+    "cadence": {
+      "sample_size": 3,
+      "median_interval_days": 10.0,
+      "max_interval_days": 10.0,
+      "consistency_cv": 0.0,
+      "regularity": "regular",
+      "confidence": {
+        "level": "moderate",
+        "reason": "n=3."
+      }
+    }
+  }
+}
