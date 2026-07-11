@@ -8,7 +8,11 @@ docs/modules/002-channel-intelligence.md.
 
 from __future__ import annotations
 
-from creatoros.intelligence.analyze import IntelligenceError, analyze_channel
+from creatoros.intelligence.analyze import (
+    IntelligenceError,
+    analyze_channel,
+    build_findings,
+)
 from creatoros.intelligence.findings import (
     CadenceFindings,
     ChannelFindings,
@@ -31,4 +35,5 @@ __all__ = [
     "TitleFindings",
     "VideoOutlier",
     "analyze_channel",
+    "build_findings",
 ]

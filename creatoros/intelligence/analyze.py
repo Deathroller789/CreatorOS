@@ -209,17 +209,15 @@ def _analyze_cadence(videos: list[dict], derived) -> CadenceFindings:
     )
 
 
-def analyze_channel(
-    channel: str, db_path: Path = DB_PATH, now: datetime | None = None
-) -> ChannelFindings:
-    """Analyze one ingested channel and return canonical findings (Q1/Q2/Q3).
+def build_findings(raw_channel: dict, videos: list[dict], derived) -> ChannelFindings:
+    """Assemble canonical findings from raw rows and their already-computed metrics.
 
-    ``channel`` is a stored ``channel_id`` or ``handle``. ``now`` is injectable so that
-    age-based analysis is deterministic in tests. Returns a ``ChannelFindings``.
+    The pure analysis seam: given the raw channel/videos and the ``derived`` metrics for
+    them, answer Q1/Q2/Q3 and return findings. It touches no database and computes no
+    metric — the metrics engine was already run. Exposed so a caller (e.g. the CLI) can
+    orchestrate metrics and intelligence as two distinct, observable steps over data it
+    already holds, without a second load.
     """
-    now = now or datetime.now(UTC)
-    raw_channel, videos = _load_channel(channel, db_path)
-    derived = compute(raw_channel, videos, now=now)
     return ChannelFindings(
         channel=ChannelRef(
             channel_id=raw_channel["channel_id"],
@@ -233,3 +231,17 @@ def analyze_channel(
         titles=_analyze_titles(videos, derived),
         cadence=_analyze_cadence(videos, derived),
     )
+
+
+def analyze_channel(
+    channel: str, db_path: Path = DB_PATH, now: datetime | None = None
+) -> ChannelFindings:
+    """Analyze one ingested channel and return canonical findings (Q1/Q2/Q3).
+
+    ``channel`` is a stored ``channel_id`` or ``handle``. ``now`` is injectable so that
+    age-based analysis is deterministic in tests. Returns a ``ChannelFindings``.
+    """
+    now = now or datetime.now(UTC)
+    raw_channel, videos = _load_channel(channel, db_path)
+    derived = compute(raw_channel, videos, now=now)
+    return build_findings(raw_channel, videos, derived)

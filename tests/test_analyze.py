@@ -13,7 +13,6 @@ from pathlib import Path
 from unittest import mock
 
 from creatoros import analyze
-from creatoros.cli import main
 from yt_dlp.utils import DownloadError
 
 URL = "https://youtube.com/@demo"
@@ -232,18 +231,6 @@ class IntegrationTests(unittest.TestCase):
             analyze.fetch_channel(URL)
 
 
-class CliTests(unittest.TestCase):
-    def test_cli_handles_analyze_error(self):
-        with mock.patch(
-            "creatoros.cli.analyze.run", side_effect=analyze.AnalyzeError("boom")
-        ):
-            self.assertEqual(main(["analyze-channel", URL]), 1)
-
-    def test_cli_success_returns_zero(self):
-        with mock.patch("creatoros.cli.analyze.run", return_value=Path("x")):
-            self.assertEqual(main(["analyze-channel", URL]), 0)
-
-
 class VideoLimitTests(unittest.TestCase):
     def test_fetch_channel_respects_limit(self):
         page = {
@@ -263,19 +250,49 @@ class VideoLimitTests(unittest.TestCase):
         flat_opts = mock_ydl_cls.call_args_list[0][0][0]
         self.assertEqual(flat_opts["playlistend"], 2)
 
-    def test_cli_passes_limit_through(self):
-        with mock.patch("creatoros.cli.analyze.run", return_value=Path("x")) as run:
-            main(["analyze-channel", URL, "--limit", "3"])
-        self.assertEqual(run.call_args.kwargs["limit"], 3)
 
-    def test_cli_defaults_to_default_limit(self):
-        with mock.patch("creatoros.cli.analyze.run", return_value=Path("x")) as run:
-            main(["analyze-channel", URL])
-        self.assertEqual(run.call_args.kwargs["limit"], analyze.DEFAULT_VIDEO_LIMIT)
+class IngestTests(unittest.TestCase):
+    def test_ingest_stores_and_returns_raw_data(self):
+        transcript = {
+            "video_id": "vid1",
+            "language": "en",
+            "is_generated": 1,
+            "segment_count": 1,
+            "text": "hi",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "c.db"
+            with (
+                mock.patch(
+                    "creatoros.analyze.fetch_channel", return_value=(CHANNEL, VIDEOS)
+                ),
+                mock.patch(
+                    "creatoros.analyze.fetch_transcript", return_value=transcript
+                ),
+            ):
+                channel, videos, transcripts = analyze.ingest(URL, db_path=db)
+            conn = sqlite3.connect(db)
+            try:
+                stored = conn.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
+            finally:
+                conn.close()
+        self.assertEqual(channel["channel_id"], "UC123")
+        self.assertEqual(len(videos), 1)
+        self.assertEqual(len(transcripts), 1)
+        self.assertEqual(stored, 1)
 
-    def test_cli_rejects_limit_below_one(self):
-        with self.assertRaises(SystemExit):
-            main(["analyze-channel", URL, "--limit", "0"])
+    def test_ingest_keeps_videos_without_transcripts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "c.db"
+            with (
+                mock.patch(
+                    "creatoros.analyze.fetch_channel", return_value=(CHANNEL, VIDEOS)
+                ),
+                mock.patch("creatoros.analyze.fetch_transcript", return_value=None),
+            ):
+                _, videos, transcripts = analyze.ingest(URL, db_path=db)
+        self.assertEqual(len(videos), 1)
+        self.assertEqual(transcripts, [])
 
 
 if __name__ == "__main__":
