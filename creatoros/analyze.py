@@ -274,28 +274,39 @@ def write_report(
     return path
 
 
+def ingest(
+    channel_url: str, limit: int = DEFAULT_VIDEO_LIMIT, db_path: Path = DB_PATH
+) -> tuple[dict, list[dict], list[dict]]:
+    """Fetch a channel and its latest uploads, store them, and return the raw data.
+
+    The ingestion primitive shared by the CLI and :func:`run`: it does the raw I/O
+    (network + SQLite) and hands back ``(channel, videos, transcripts)`` for a caller to
+    analyze. A video whose transcript is unavailable is still kept — metadata is enough,
+    and the V1 intelligence report uses metadata only.
+    """
+    channel, videos = fetch_channel(channel_url, limit=limit)
+    transcripts: list[dict] = []
+    for v in videos:
+        transcript = fetch_transcript(v["video_id"])
+        if transcript:
+            transcripts.append(transcript)
+    save(channel, videos, transcripts, db_path=db_path)
+    return channel, videos, transcripts
+
+
 def run(
     channel_url: str,
     limit: int = DEFAULT_VIDEO_LIMIT,
     db_path: Path = DB_PATH,
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
-    """Fetch a channel, store it, and write a report. Returns the report path."""
+    """Fetch a channel, store it, and write the ingestion catalog report."""
     print(f"Analyzing {channel_url} (limit {limit}) ...")
-    channel, videos = fetch_channel(channel_url, limit=limit)
+    channel, videos, transcripts = ingest(channel_url, limit=limit, db_path=db_path)
     print(
         f"Channel: {channel['title']} ({channel['channel_id']}) - "
         f"{len(videos)} videos fetched"
     )
-
-    transcripts: list[dict] = []
-    for v in videos:
-        print(f"  transcript: {(v.get('title') or '')[:60]}")
-        transcript = fetch_transcript(v["video_id"])
-        if transcript:
-            transcripts.append(transcript)
-
-    save(channel, videos, transcripts, db_path=db_path)
     report = write_report(channel, videos, transcripts, output_dir=output_dir)
     print(f"Saved to {db_path}")
     print(f"Transcripts: {len(transcripts)}/{len(videos)}")
