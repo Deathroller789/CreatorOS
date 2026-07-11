@@ -69,5 +69,6 @@ Keep them short. A record that fits on one screen gets read; a 2,000-word one do
 | [ADR-004](adr-004-why-argparse.md) | Why `argparse` (no CLI framework) | Accepted |
 | [ADR-005](adr-005-why-playwright-library-not-mcp.md) | Why the Playwright library (not the MCP) | Accepted |
 | [ADR-006](adr-006-raw-derived-analysis.md) | Raw → Derived → Analysis (the Derived Metrics Engine) | Accepted |
+| [ADR-007](adr-007-report-export-command-surface.md) | The report export command surface (`export` + renderer registry) | Proposed |
 
 _ADRs are authored when a decision is actually made, not before._
