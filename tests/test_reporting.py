@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import sys
 import unittest
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,10 +23,20 @@ from creatoros.reporting import (
     DESCRIPTIVE_DISCLAIMER,
     JsonRenderer,
     MarkdownRenderer,
+    ReportMetadata,
     build_metadata,
 )
 
 NOW = datetime(2026, 1, 11, tzinfo=UTC)
+
+GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
+MARKDOWN_GOLDEN = GOLDEN_DIR / "channel_report.md"
+JSON_GOLDEN = GOLDEN_DIR / "channel_report.json"
+
+# The installed package version leaks into report provenance. Pin it for the golden
+# fixture so the committed files depend only on *rendering*, not on the environment's
+# version string — the whole point of a rendering regression test.
+_PINNED_VERSION = "0.0.0-test"
 
 
 def _findings() -> ChannelFindings:
@@ -68,6 +80,23 @@ def _findings() -> ChannelFindings:
             confidence=Confidence("moderate", "n=3."),
         ),
     )
+
+
+def _golden_metadata() -> ReportMetadata:
+    """Metadata for the fixture with the environment-dependent version pinned, so the
+    golden files change only when rendering changes."""
+    meta = build_metadata(_findings(), now=NOW)
+    return replace(
+        meta, creatoros_version=_PINNED_VERSION, metric_engine_version=_PINNED_VERSION
+    )
+
+
+def _render_markdown_golden() -> str:
+    return MarkdownRenderer().render(_findings(), _golden_metadata())
+
+
+def _render_json_golden() -> str:
+    return JsonRenderer().render(_findings(), _golden_metadata())
 
 
 class MetadataTests(unittest.TestCase):
@@ -146,6 +175,53 @@ class JsonTests(unittest.TestCase):
         self.assertEqual(self.out, again)
 
 
+class GoldenRegressionTests(unittest.TestCase):
+    """Deterministic renderers vs committed reference bytes.
+
+    The same frozen, synthetic findings must render to byte-for-byte identical Markdown
+    and JSON. A mismatch means rendering changed; if that change is intended, regenerate
+    the golden files with::
+
+        uv run python tests/test_reporting.py --update-golden
+
+    Production data is never used here — the fixture is hand-built.
+    """
+
+    def test_markdown_matches_golden(self) -> None:
+        self.assertEqual(
+            _render_markdown_golden().encode("utf-8"),
+            MARKDOWN_GOLDEN.read_bytes(),
+            "Markdown rendering changed; regenerate the golden file if intended.",
+        )
+
+    def test_json_matches_golden(self) -> None:
+        self.assertEqual(
+            _render_json_golden().encode("utf-8"),
+            JSON_GOLDEN.read_bytes(),
+            "JSON rendering changed; regenerate the golden file if intended.",
+        )
+
+    def test_golden_rendering_is_deterministic(self) -> None:
+        self.assertEqual(_render_markdown_golden(), _render_markdown_golden())
+        self.assertEqual(_render_json_golden(), _render_json_golden())
+
+    def test_both_formats_carry_the_same_information(self) -> None:
+        # JSON is the canonical, lossless form; Markdown is presentation. Every fact the
+        # JSON records must also appear in the Markdown — only the shape differs. (JSON
+        # identifies videos by id, Markdown by title/url, so match on title + index.)
+        md = _render_markdown_golden()
+        doc = json.loads(_render_json_golden())
+        self.assertIn(doc["notice"], md)
+        self.assertIn(doc["metadata"]["creatoros_version"], md)
+        self.assertIn(doc["metadata"]["channel_id"], md)
+        findings = doc["findings"]
+        for video in findings["outliers"]["ranking"]:
+            self.assertIn(f"{video['performance_index']:.2f}x", md)
+            self.assertIn(video["title"].replace("|", "\\|"), md)
+        self.assertIn(findings["titles"]["features"][0]["metric"], md)
+        self.assertIn(findings["cadence"]["regularity"], md)
+
+
 class BoundaryTests(unittest.TestCase):
     def test_reporting_performs_no_metric_computation_or_analysis(self) -> None:
         # The layer boundary as an executable assertion: reporting consumes findings and
@@ -159,5 +235,19 @@ class BoundaryTests(unittest.TestCase):
                     self.assertNotIn(token, text)
 
 
+def _write_golden_files() -> None:
+    """Regenerate the committed golden files. LF newline is forced so the files stay
+    byte-stable across platforms regardless of ``core.autocrlf`` (see issue #18)."""
+    GOLDEN_DIR.mkdir(exist_ok=True)
+    MARKDOWN_GOLDEN.write_text(
+        _render_markdown_golden(), encoding="utf-8", newline="\n"
+    )
+    JSON_GOLDEN.write_text(_render_json_golden(), encoding="utf-8", newline="\n")
+    print(f"Wrote {MARKDOWN_GOLDEN}\nWrote {JSON_GOLDEN}")
+
+
 if __name__ == "__main__":
-    unittest.main()
+    if "--update-golden" in sys.argv:
+        _write_golden_files()
+    else:
+        unittest.main()
