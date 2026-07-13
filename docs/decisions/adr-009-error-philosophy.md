@@ -1,6 +1,6 @@
 # ADR-009: Error philosophy — categories, exit codes, and user experience
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-13
 
 ## Context
@@ -67,6 +67,48 @@ Model failure along three axes, and define the five terms against them:
 | Transient, run-fatal (channel fetch times out) | retry; then abort if still failing | failure (expected) | `1` |
 | Permanent, run-fatal, user-fixable (bad URL, empty channel) | abort with a fix | failure (expected) | `1` |
 | Unexpected / internal (bug, impossible state) | abort, report honestly | failure (internal) | `2` |
+
+### Error provenance — every error has an owner
+
+Independently of severity, every error names its **source** — who or what caused it — whenever
+that source is identifiable. Four owners:
+
+| Owner | Meaning | Example |
+|-------|---------|---------|
+| **User** | The input or invocation is at fault | bad URL, empty channel, invalid option |
+| **Environment** | The machine or runtime around us | no disk space, missing runtime, a cp1252 console |
+| **Dependency** | An external tool or service we rely on | yt-dlp scrape breaks, YouTube `429`, transcript API down |
+| **CreatorOS** | Our own code | a bug, an impossible state, a broken invariant |
+
+Provenance is orthogonal to the condition/response/outcome axes: a `429` is transient, run-fatal,
+*and* owned by a Dependency.
+It sharpens the message — a User error says what to fix, a Dependency error says what failed and
+that it is not the user's fault, an Environment error names the missing capability, and a CreatorOS
+error owns the bug — and it protects blame-assignment: a dependency breaking is never reported as
+user error, and our own bug is never blamed on the user.
+Provenance also anchors the `1`-vs-`2` split: User, Environment, and Dependency failures are
+*expected* (exit `1` when run-fatal, `0` when skippable); only a CreatorOS-owned failure is
+*internal* and exits `2`.
+When the source cannot be determined, say so rather than guessing — attributing an error to the
+wrong owner is itself a failure.
+
+### Unavailable versus missing — preserve uncertainty
+
+CreatorOS distinguishes **missing** (we looked, and it is genuinely not there) from **unavailable**
+(we could not obtain it right now) and **unknown** (we never established it either way).
+These are not synonyms, and collapsing them into "missing" invents a certainty the system does not
+have.
+
+_Example:_ a video with no transcript may be one that genuinely **has** no transcript (missing), one
+whose transcript we were rate-limited out of fetching (unavailable), or one we never attempted
+(unknown). Reporting all three as "no transcript" lets a transient fetch failure masquerade as a
+settled fact about the channel.
+
+The rule: **never assert an absence you have not verified.** A metric with no input is
+`None`/"unknown" (ADR-006's null propagation already carries this through the metric graph), a fetch
+that failed is "unavailable", and only a confirmed lookup returns "missing".
+This is the error-handling face of the intelligence discipline (ADR-006): descriptive not
+predictive, preserve uncertainty, and "unknown" is an acceptable answer.
 
 ## User-experience philosophy, per category
 
@@ -138,6 +180,9 @@ Cutting across all of them: **actionable over generic** (from #31), **never hide
 - **Revisit trigger:** the first automation consumer that must distinguish partial from full
   success programmatically (reopens the "exit code `3` vs `--strict`" question), or the first
   failure mode that does not fit these three axes.
+- Every error now carries an **owner** (User / Environment / Dependency / CreatorOS) and every
+  absence is stated as **missing**, **unavailable**, or **unknown** — not flattened into one. Both
+  are part of the contract each command implements, alongside the exit-code mapping.
 
 ## Exit strategy
 
