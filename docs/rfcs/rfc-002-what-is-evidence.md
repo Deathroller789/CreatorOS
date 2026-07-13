@@ -172,12 +172,76 @@ well-built is Level-4 synthesis over those signals, cited back to them, never as
 fact. CreatorOS gathers the narrative signals deterministically and leaves the narrative verdict
 to synthesis.
 
+### From evidence to knowledge
+
+Evidence and knowledge are not the same thing, and evidence does not automatically become
+knowledge. A single reproducible observation is evidence; it is not yet something the system — or
+a creator — is entitled to *believe*. **Knowledge is evidence that has accumulated enough support
+to justify belief.**
+
+Support accumulates along four axes:
+
+- **Repetition across many observations** — the same pattern seen in many videos of one channel.
+- **Repetition across many channels** — the same pattern seen in many independent channels.
+- **Consistency over time** — the pattern holding across snapshots, not just in one capture.
+- **Agreement across independent evidence classes** — scalar, corpus, comparative, and temporal
+  evidence pointing the same way, each derived by a different method.
+
+So belief strengthens in stages:
+
+> **A single observation is evidence. Repeated observations are stronger evidence. Independent
+> evidence classes converging on the same conclusion begin to become knowledge.**
+
+The last axis is the decisive one. Repetition and consistency strengthen evidence within its own
+kind; *convergence* — different, independently derived evidence classes agreeing — is what turns
+strong evidence into knowledge, because independent methods are unlikely to share the same error.
+This is the arrow the architecture already names: Findings accumulate into **Knowledge**
+([Module 003](../modules/003-knowledge-layer.md)), the layer where support is weighed across
+observations, channels, and time.
+
+Knowledge is not truth. **Truth exists independently of CreatorOS; knowledge is the strongest
+explanation currently justified by the available evidence — our best justified understanding, not
+a guarantee of truth.** Because knowledge is justified by evidence rather than identical to truth,
+it always remains **revisable**: a stronger piece of evidence — a wider sample, a longer history, a
+once-agreeing class that now disagrees — can revise or overturn it. The system holds knowledge the
+way it holds findings: provisionally, provenanced, and open to being rewritten by better evidence.
+
+> **CreatorOS does not search for certainty. It searches for convergence.**
+
+Convergence between independent evidence streams is therefore not merely a quality signal — it is
+the long-term direction of the product. What CreatorOS ultimately delivers is not any single
+measurement but the moment several independent lines of evidence, gathered by different
+deterministic methods, agree.
+
+### When evidence disagrees
+
+Convergence is earned, never assumed — and independent evidence classes will sometimes point in
+different directions. When they do, **CreatorOS must preserve the disagreement rather than force a
+conclusion.** If title-structure evidence suggests one account while transcript evidence suggests
+another, the honest result is to report both and the tension between them — not to invent a single
+answer the evidence does not support.
+
+This follows directly from the definition of evidence: **disagreement is itself evidence.** A
+contradiction between independently derived classes is a real, reproducible observation about the
+channel, and suppressing it to manufacture a clean verdict would be exactly the laundering of
+interpretation into fact that the levels forbid. Reported honestly, disagreement tells a creator
+something true — that the picture is genuinely mixed.
+
+> **Absence of convergence is not failure. It is an honest result.**
+
+CreatorOS is therefore allowed to conclude **"we do not yet know."** That is a successful outcome,
+not a product failure. The goal is not to maximise the number of conclusions the system reaches,
+but to maximise the number of *truthful* ones. A system that always produces an answer has stopped
+being accountable to its evidence; one that says "not yet" when the evidence has not converged is
+behaving exactly as this framework requires.
+
 ### Evidence grows more expensive, and more valuable
 
 A guiding principle — and the shape of the long-term roadmap:
 
-> **Evidence should become increasingly expensive to compute, but increasingly valuable to
-> creators.**
+> **Evidence should become increasingly expensive to compute, and increasingly valuable to
+> creators — and its destination is not any single expensive class, but multiple independent
+> evidence classes converging on the same conclusion.**
 
 The cheap evidence comes first because it is the foundation — but it is also the least
 differentiated: a creator can eyeball their own title lengths. The expensive evidence comes later
@@ -198,6 +262,15 @@ discipline the principle enforces cuts both ways: **do not chase expensive evide
 cheap foundation it rests on exists**, and **do not stop at the cheap evidence, because the
 expensive evidence is the point.** Every stage is justified only by the creator questions it
 answers (the zeroth gate), and each becomes tractable only once the stage beneath it exists.
+
+But the gradient is not just a ladder of rising cost; the stages are the independent evidence
+streams whose *convergence* is the real goal. The destination of CreatorOS is not the most
+expensive class in isolation — narrative evidence for its own sake — but **multiple independent
+evidence classes converging on the same conclusion** (see
+[From evidence to knowledge](#from-evidence-to-knowledge)): scalar, corpus, comparative, temporal,
+and narrative evidence, each gathered by a different deterministic method, agreeing on the same
+account of why a video performed. That convergence — not any single measurement — is the real
+destination this gradient climbs toward, and it is what a creator can finally trust.
 
 ### The determinism boundary
 
