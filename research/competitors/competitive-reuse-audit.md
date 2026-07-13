@@ -133,6 +133,27 @@ Two kinds of refusal, both deliberate.
 Refusing these is what keeps the codebase small and the intelligence honest; they are the features
 that would pull CreatorOS toward the dashboard/predictive category it deliberately avoids.
 
+### Things CreatorOS deliberately does NOT compete on
+
+The surveyed tools bundle a creator-workflow suite around their analytics.
+CreatorOS competes on none of it.
+It is an intelligence engine, not a creator studio — the whole product is *understanding a channel*,
+not *operating one*.
+
+| Not competing on | Whose product it is | Why it is out of scope |
+|------------------|---------------------|------------------------|
+| Real-time dashboards | VidIQ, ViewStats, BI stacks | Live UI + infrastructure; CreatorOS emits point-in-time findings, not a live surface |
+| Scheduling / publishing | TubeBuddy, Buffer-likes | Operating a channel, not analyzing one |
+| Team collaboration | TubeBuddy, Spotter | Multi-user workflow product, orthogonal to intelligence |
+| AI script generation | VidIQ, Spotter Studio | Generative and prescriptive; CreatorOS is descriptive, not a content author |
+| Video editing | Descript, CapCut, etc. | A different tool category entirely |
+| Thumbnail generation | 1of10, VidIQ, design tools | Creative production, not measurement |
+
+This is the sharper edge of the differentiation section: CreatorOS is deliberately narrow.
+It answers "what is true about this channel, and how confident can we be?" and stops there —
+everything above is somebody else's product, and building it would dilute the one thing CreatorOS
+does that nobody else does.
+
 ### Remaining reuse opportunities
 
 Borrowable *ideas* (evaluate later, do not adopt now):
