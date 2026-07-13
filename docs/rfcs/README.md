@@ -60,6 +60,7 @@ genuinely open (e.g. *"Should CreatorOS use DuckDB instead of SQLite?"*).
 
 | # | Title | Status |
 |---|-------|--------|
-| [RFC-001](rfc-001-topic-representation.md) | How should CreatorOS represent topics? | Proposed |
+| [RFC-001](rfc-001-topic-representation.md) | How should CreatorOS represent topics? | Proposed (reframed by RFC-002 as one evidence class) |
+| [RFC-002](rfc-002-what-is-evidence.md) | What is evidence in CreatorOS? | Proposed |
 
 _RFCs are written for real, open decisions — never hypothetically._
