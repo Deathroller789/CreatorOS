@@ -28,6 +28,32 @@ under the existing ADRs.
 
 ## First principles
 
+### Evidence exists to answer creator questions
+
+This is the first and overriding principle; it gates every other.
+
+> **Every piece of evidence must justify its existence by answering at least one creator
+> question. If no creator question depends on it, it should not exist.**
+
+CreatorOS is not an analytics product accumulating numbers because they can be measured. It is
+an instrument for helping a creator discover truths about their own work that they could not
+find by hand. A statistic that answers no question a creator would actually ask is not "extra
+insight" — it is noise that dilutes the signal and spends trust.
+
+The creator questions are the ones [Module 002](../modules/002-channel-intelligence.md) already
+frames — *which videos over- or under-performed and what do they share; is my cadence helping or
+hurting; what keeps a viewer watching* — plus the ones the roadmap will add. Each is a real
+question a working creator asks. Evidence earns its place by tracing to one of them.
+
+So the acceptance test has a **zeroth gate**, applied before the quality properties below:
+
+- **Zeroth — necessity:** which creator question does this answer? If none, it does not ship.
+- **Then — quality:** is it reproducible, provenanced, descriptive, confidence-bounded,
+  inspectable?
+
+An evidence class with no creator question behind it is a research curiosity, not a CreatorOS
+feature.
+
 ### What evidence is
 
 > **Evidence is a reproducible, provenanced, descriptive observation about a channel, derived
@@ -76,10 +102,39 @@ Naming the boundary is as important as naming the thing.
   compared to a baseline, counted across a corpus). Raw is the substrate; evidence is the
   observation over it.
 
+### Levels of evidence
+
+Evidence has **depth** as well as shape. Four levels — of which only the first three are
+evidence. The fourth is what evidence is *for*.
+
+- **Level 1 — Facts.** Individual reproducible observations about one video or channel: "this
+  video runs 12 minutes, has a 47-character title, and earns 6,700 views/day." The atoms,
+  computed directly from captured data.
+- **Level 2 — Patterns.** Regularities *across* facts: "this channel uploads every 14 days";
+  "40% of its titles pose a question"; "its videos fall into three topics." A pattern is many
+  facts seen together.
+- **Level 3 — Relationships.** Connections *between* facts and patterns: "above-baseline videos
+  pose a question twice as often as below"; "outliers concentrate in one topic"; "cadence
+  tightened as views grew." Descriptive association — never asserted as cause.
+- **Level 4 — Explanations.** The causal "why": "this title worked *because* it opened a
+  curiosity gap." **This is not evidence.** It is **synthesis** — an interpretation built on
+  Levels 1–3, produced by reasoning over them, accountable to them, and forbidden to contradict
+  them. It is the one place an LLM may eventually operate, and it must cite the evidence beneath
+  it.
+
+> **Levels 1–3 are evidence, gathered deterministically. Level 4 is synthesis — the only place
+> interpretation lives.**
+
+A system that blurs Level 3 into Level 4 — that lets a correlation be spoken as a cause — has
+stopped being trustworthy. Keeping that line sharp is exactly what will let a creator trust the
+"why" when it finally comes: it will be visibly built on facts they can inspect. The depth levels
+and the shape classes below are two axes of the same thing — a Level-1 fact has a scalar shape, a
+Level-2 pattern is corpus or temporal, a Level-3 relationship is comparative.
+
 ### The evidence taxonomy
 
-Evidence varies along one axis that decides almost everything: its **shape**, which in turn
-fixes which layer produces it and whether it can be deterministic. Five classes:
+Evidence also varies by **shape**, which fixes which layer produces it and whether it can be
+deterministic. Six classes:
 
 | Class | What it is | Shape | Layer | Deterministic? | Status today |
 |-------|-----------|-------|-------|----------------|--------------|
@@ -88,24 +143,66 @@ fixes which layer produces it and whether it can be deterministic. Five classes:
 | **Comparative** | A relationship between observations: "above-baseline videos carry a number 2× as often"; "outliers concentrate in topic Y" | a contrast + effect size + n | **Findings** | Yes | Exists for scalars (Q2); extends to corpus evidence |
 | **Temporal** | Change across snapshots: "cadence CV fell 0.55 → 0.31 over four months" | a delta over ≥2 snapshots | **Knowledge** | Yes (a diff) | Deferred — needs the findings archive |
 | **Historical** | What was true at a past point: "in Q1 the top outlier was video X" | a retrieved past finding | **Knowledge** | Yes (retrieval) | Deferred — needs persistence |
+| **Narrative** | Story structure *within* a video: hooks, curiosity gaps, conflict, escalation, callbacks, payoff, arc | a sequence/structure over one video's transcript | **Derived** (new shape) | Partly — the *signals* are; the *verdict* is synthesis | Future — the most valuable, most expensive class |
 
-Two observations fall straight out of this table.
+Three observations fall straight out of this table.
 
-First, **evidence gathering is deterministic in every class.** Not one class requires an LLM to
-*produce* the evidence — counting, comparing, diffing, and retrieving are all deterministic.
-This is not a constraint imposed on the taxonomy; it is a property the taxonomy reveals.
+First, **evidence gathering is deterministic** — counting, comparing, diffing, and retrieving
+need no LLM. The one class that reaches past what can be plainly counted is **Narrative**, and
+the taxonomy handles it honestly: its *signals* are deterministic evidence (Levels 1–2), and its
+*verdict* is Level-4 synthesis. Nothing an LLM produces is ever itself evidence.
 
-Second, **the classes map cleanly onto the existing layers** — with exactly one gap.
-Scalar → Derived, Comparative → Findings, Temporal/Historical → Knowledge are already how the
-architecture is shaped. The single thing the architecture cannot yet express is **corpus
-evidence**: the Derived engine ([ADR-006](../decisions/adr-006-raw-derived-analysis.md))
-returns a scalar per record, and a term-frequency table is neither. That gap — not "how do we
-do topics" — is the real open question, and RFC-001 is one instance of it.
+Second, **the classes map onto the existing layers** — with the gaps being about *shape*, not
+layer. Scalar → Derived, Comparative → Findings, Temporal/Historical → Knowledge are already how
+the architecture is shaped. What the architecture cannot yet express is **non-scalar Derived
+evidence**: the engine ([ADR-006](../decisions/adr-006-raw-derived-analysis.md)) returns a scalar
+per record, but corpus evidence is a *table* and narrative evidence is a *sequence*. That
+shape gap — not "how do we do topics" — is the real open question; RFC-001 is one instance of it,
+and narrative is the harder one.
+
+Third, **narrative evidence is likely the most valuable class CreatorOS will ever gather**, and
+the most expensive. Story structure — the hook that stops the scroll, the curiosity gap that
+holds attention, the escalation and payoff that earn a re-watch — is what creators most want to
+understand and are least able to see across their own catalog. It also straddles the determinism
+boundary, and the taxonomy keeps that honest: the *signals* are deterministically detectable — a
+question posed in the first ten seconds (a curiosity gap opening), an entity from the intro
+recurring at the end (a callback), rising pace or intensity (escalation), a resolved question (a
+payoff) — and those are Level 1–2 evidence. The *judgment* that a hook is strong or suspense
+well-built is Level-4 synthesis over those signals, cited back to them, never asserted as a bare
+fact. CreatorOS gathers the narrative signals deterministically and leaves the narrative verdict
+to synthesis.
+
+### Evidence grows more expensive, and more valuable
+
+A guiding principle — and the shape of the long-term roadmap:
+
+> **Evidence should become increasingly expensive to compute, but increasingly valuable to
+> creators.**
+
+The cheap evidence comes first because it is the foundation — but it is also the least
+differentiated: a creator can eyeball their own title lengths. The expensive evidence comes later
+because it is hard — but it is where CreatorOS earns its reason to exist, because a creator
+*cannot* eyeball the narrative structure of fifty videos or the topic-conditioned performance of
+a whole catalog. Cost and value rise together, and that ordering *is* the roadmap:
+
+| Stage | Evidence | Cost | Why a creator can't do it by hand |
+|-------|----------|------|-----------------------------------|
+| 1 | Scalar facts (title/format structure, cadence) | trivial | mostly confirms what they already suspect |
+| 2 | Corpus patterns (topics, recurring phrases/entities) | moderate | reveals what a channel is *actually* about, at scale |
+| 3 | Relationships (what hits share; topic-conditioned performance) | moderate–high | isolates packaging from topic — genuinely hard by hand |
+| 4 | Temporal / historical (trajectory across snapshots) | high | shows change no single snapshot can |
+| 5 | Narrative evidence (hooks, curiosity gaps, escalation, payoff) | highest | the truths creators most want and least can see |
+
+Synthesis (Level-4 explanations) sits above all of it, consuming whatever evidence exists. The
+discipline the principle enforces cuts both ways: **do not chase expensive evidence before the
+cheap foundation it rests on exists**, and **do not stop at the cheap evidence, because the
+expensive evidence is the point.** Every stage is justified only by the creator questions it
+answers (the zeroth gate), and each becomes tractable only once the stage beneath it exists.
 
 ### The determinism boundary
 
-The line between evidence and explanation is the line between deterministic gathering and
-interpretive synthesis.
+The line between evidence and explanation is the Level-3 / Level-4 line, restated operationally
+as deterministic gathering versus interpretive synthesis.
 
 - **Everything that can be counted, compared, diffed, or retrieved is deterministic evidence**,
   and is produced by Python/SQLite in the Derived, Findings, or Knowledge layers. No LLM.
@@ -129,11 +226,13 @@ first, and the system's trust rests on the table, not the label.
 These are not decisions this RFC makes; they are what the principles force, listed so the
 enacting work is obvious once the frame is accepted.
 
-1. **The Derived layer must gain a way to represent corpus evidence** without breaking the
-   scalar engine — a deterministic corpus-evidence producer (a channel-scope component that
-   returns a structure) feeding Findings, alongside the scalar metric engine. Whether it lives
-   *inside* the engine (a channel metric returning a table) or beside it (a sibling derived
-   component) is the ADR-006 "shape" question, now generalised beyond topics.
+1. **The Derived layer must gain a way to represent non-scalar evidence** without breaking the
+   scalar engine — a deterministic producer (a channel-scope component that returns a structure)
+   feeding Findings, alongside the scalar metric engine. Corpus evidence needs a *table*;
+   narrative evidence needs a *sequence*. Whether this lives *inside* the engine (a metric
+   returning a structure) or beside it (a sibling derived component) is the ADR-006 "shape"
+   question, now generalised beyond topics. Corpus is the near-term instance; narrative is the
+   far-term one and will also need its determinism boundary drawn per signal.
 2. **The Findings contract grows additively** to carry corpus and comparative evidence (e.g.
    topic/entity/phrase finding groups), schema-versioned per
    [ADR-008](../decisions/adr-008-versioning-strategy.md). No rewrite; new frozen groups.
@@ -150,29 +249,34 @@ enacting work is obvious once the frame is accepted.
 
 ## Pros
 
+- **It is product-first, not statistic-first.** The necessity gate ("which creator question does
+  this answer?") stops CreatorOS from accumulating measurable-but-useless numbers — the failure
+  mode of every analytics tool it refuses to become.
+- **The levels keep two dangerous lines sharp** — correlation vs cause (Level 3 vs 4) and
+  evidence vs synthesis — so the LLM can never launder an interpretation into a fact, and a
+  future "why" is visibly built on inspectable facts.
 - **One definition instead of many ad-hoc ones.** Every future evidence question (phrases,
-  entities, thumbnails, comments) is answered by placing it in the taxonomy, not by relitigating
-  shape and layer each time.
-- **The determinism boundary becomes a bright line**, which protects the system's core promise:
-  trust rests on reproducible facts, and the LLM can never launder an interpretation into a
-  fact.
-- **It surfaces the real gap** (corpus-evidence shape) that "how do we do topics" obscured, and
-  shows it is a single decision serving many features, not a topics-only detail.
+  entities, thumbnails, comments, narrative) is answered by placing it in the taxonomy and the
+  levels, not by relitigating shape and layer each time.
+- **The cost/value gradient is a ready-made roadmap** that also enforces discipline: build the
+  cheap foundation first, but don't stop there, because the expensive evidence (narrative) is the
+  point.
 - **It is fully consistent with every accepted ADR** — it names and organises principles already
   present in ADR-006/009/010 and Module 002/003, rather than introducing new ones.
 
 ## Cons
 
 - **It is a framework, not a shipped feature** — its value is realised only when the enacting
-  work (corpus-evidence shape) is done. A principles document that never gets enacted is
+  work (the non-scalar shape decision) is done. A principles document that never gets enacted is
   overhead.
-- **The taxonomy could ossify.** A future evidence kind might not fit the five classes cleanly
-  (e.g. graph/relational evidence across channels); the framework must be allowed to gain a
-  class rather than forcing a bad fit.
-- **The determinism line has grey zones.** Named-entity recognition and sentiment sit between
-  "counted" and "interpreted"; the RFC holds them to the deterministic side only when a
-  rule-based, reproducible method exists, and pushes them to synthesis otherwise — a judgement
-  that will need to be made per method.
+- **The necessity gate needs a maintained question set.** "Answers a creator question" is only
+  enforceable if the catalogue of creator questions is kept current (it starts from Module 002's
+  Q1–Q6); an out-of-date list would gate wrongly.
+- **Narrative evidence's determinism boundary is genuinely hard.** Which narrative signals are
+  reproducibly countable (curiosity-gap opener, callback, escalation, payoff) and which collapse
+  into Level-4 judgement must be drawn per signal — the RFC sets the rule but not every ruling.
+- **The taxonomy could still be incomplete.** Cross-channel/relational evidence may need yet
+  another class; the framework must grow a class rather than force a bad fit.
 
 ## Benchmarks / evidence
 
@@ -199,36 +303,45 @@ topics — is RFC-001's spike, unchanged.
 
 ## Recommendation
 
-Adopt this definition of evidence and its taxonomy as the frame for all Evidence Engine work.
-Concretely:
+Adopt this definition of evidence, its levels, and its taxonomy as the frame for all Evidence
+Engine work. Concretely:
 
-1. **Accept the five properties** (reproducible, provenanced, descriptive, confidence-bounded,
-   inspectable; immutable once recorded) as the acceptance test for anything the system calls
-   evidence.
-2. **Accept the five classes** (scalar, corpus, comparative, temporal, historical) and their
-   layer mapping, and accept the determinism boundary (LLM = synthesis only, never a producer of
-   evidence).
-3. **Treat "corpus-evidence shape" as the next architectural decision** — a single ADR that
-   decides how the Derived layer represents non-scalar deterministic evidence, generalising the
-   shape question RFC-001 raised for topics. That ADR, once made, unblocks corpus evidence
-   (phrases, entities, topics) as additive Findings.
-4. **Keep temporal/historical evidence and all synthesis out of scope** until their
-   prerequisites (findings archive; then a citation-bound synthesis layer) exist.
+1. **Accept the necessity gate** — evidence exists only to answer a creator question — as the
+   zeroth test, ahead of the five quality properties (reproducible, provenanced, descriptive,
+   confidence-bounded, inspectable; immutable once recorded).
+2. **Accept the four levels** (Facts, Patterns, Relationships = evidence; Explanations =
+   synthesis) and the six shape classes (scalar, corpus, comparative, temporal, historical,
+   narrative), with the determinism boundary: LLM = synthesis only, never a producer of evidence.
+3. **Accept the cost/value gradient as the roadmap** — cheap facts first, narrative evidence
+   last, each stage justified by a creator question and enabled by the stage beneath it.
+4. **Treat the non-scalar evidence shape as the next architectural decision** — a single ADR for
+   how the Derived layer represents a *table* (corpus) and, later, a *sequence* (narrative),
+   generalising the shape question RFC-001 raised for topics. Corpus is the near-term instance it
+   unblocks.
+5. **Keep temporal/historical evidence, narrative evidence, and all synthesis out of scope** until
+   their prerequisites (findings archive; sequence shape; a citation-bound synthesis layer) exist.
 
-Confidence: **High** on the framework (it is a restatement and organisation of principles the
-repo already commits to). **Medium** on the taxonomy's completeness — cross-channel/relational
-evidence may later require a sixth class; the framework should grow a class rather than distort
-to fit.
+Confidence: **High** on the framework — it restates and organises principles the repo already
+commits to, and the product-first gate makes it more, not less, grounded. **Medium** on the
+taxonomy's completeness: cross-channel/relational evidence may still require a further class, and
+narrative's determinism boundary will need per-signal rulings. The framework should grow a class
+rather than distort to fit.
 
 ## Open questions
 
-- **Corpus-evidence shape** — channel-scope metric returning a structure vs a separate derived
-  component. The concrete decision consequence 1 defers to an enacting ADR.
+- **Non-scalar evidence shape** — channel-scope producer returning a structure (table, then
+  sequence) vs a separate derived component. The concrete decision consequence 1 defers to an
+  enacting ADR.
+- **The creator-question catalogue** — where the authoritative list of creator questions lives
+  and how it is kept current, since the necessity gate depends on it (starts from Module 002's
+  Q1–Q6).
+- **Narrative signal boundaries** — exactly which narrative signals are reproducibly countable
+  (Level 1–2 evidence) versus interpretive (Level-4 synthesis). Drawn per signal against the five
+  properties.
 - **The grey-zone methods** — entities and sentiment: admitted as deterministic evidence only
-  where a reproducible rule-based method exists, else pushed to synthesis. Decided per method,
-  against the five properties.
-- **A possible sixth class** — relational/cross-channel evidence (`compare-channels`) may not be
-  scalar, corpus, temporal, or historical. Left open; add a class if and when it is real.
+  where a reproducible rule-based method exists, else pushed to synthesis.
+- **A possible further class** — relational/cross-channel evidence (`compare-channels`) may not
+  fit the six classes. Left open; add a class if and when it is real.
 
 ## Next actions
 
