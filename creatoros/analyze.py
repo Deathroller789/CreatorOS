@@ -27,6 +27,24 @@ class AnalyzeError(Exception):
     """Raised when a channel cannot be analyzed (bad URL, network failure, etc.)."""
 
 
+class _QuietLogger:
+    """Swallow yt-dlp's own console logging (issue #40 family).
+
+    Expected per-video failures — members-only, region-locked, or deleted videos — and
+    the harmless "no JS runtime" warning would otherwise print a line each and flood the
+    console on a normal run. Real failures are not lost: yt-dlp still raises, and the
+    caller catches the exception and re-raises it with an actionable message.
+    """
+
+    def debug(self, msg: str) -> None: ...
+
+    def info(self, msg: str) -> None: ...
+
+    def warning(self, msg: str) -> None: ...
+
+    def error(self, msg: str) -> None: ...
+
+
 def _videos_url(channel_url: str) -> str:
     """Point any channel-URL form at its Videos tab so we get the latest uploads."""
     url = channel_url.strip().rstrip("/")
@@ -44,6 +62,7 @@ def fetch_channel(
         "skip_download": True,
         "extract_flat": "in_playlist",
         "playlistend": limit,
+        "logger": _QuietLogger(),
     }
     try:
         with yt_dlp.YoutubeDL(flat_opts) as ydl:
@@ -62,7 +81,12 @@ def fetch_channel(
 
     entries = [e for e in (page.get("entries") or []) if e][:limit]
     videos: list[dict] = []
-    detail_opts = {"quiet": True, "skip_download": True, "noplaylist": True}
+    detail_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "noplaylist": True,
+        "logger": _QuietLogger(),
+    }
     with yt_dlp.YoutubeDL(detail_opts) as ydl:
         for entry in entries:
             video_id = entry.get("id")
@@ -72,8 +96,10 @@ def fetch_channel(
                 info = ydl.extract_info(
                     f"https://www.youtube.com/watch?v={video_id}", download=False
                 )
-            except DownloadError as exc:
-                print(f"  - skipping video {video_id}: {exc}")
+            except DownloadError:
+                # Expected for members-only / region-locked / deleted videos. Dropped
+                # silently here; the CLI reports the requested-vs-received shortfall
+                # (issue #41) so the smaller sample is never hidden.
                 continue
             videos.append(
                 {
@@ -100,8 +126,11 @@ def fetch_transcript(video_id: str) -> dict | None:
     """
     try:
         fetched = YouTubeTranscriptApi().fetch(video_id)
-    except Exception as exc:  # noqa: BLE001 — intentional catch-all for the MVP slice
-        print(f"  - no transcript for {video_id}: {exc}")
+    except Exception:  # noqa: BLE001 — captions fail in many normal ways; treat all alike
+        # Silent by design. A per-video print here dumps the transcript library's
+        # multi-line error/help text for *every* failure, filling the console on a run
+        # where captions are simply disabled (issue #40). The caller emits one grouped
+        # summary line instead — ADR-009: warnings calm and grouped, retries invisible.
         return None
 
     snippets = fetched.to_raw_data()

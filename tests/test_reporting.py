@@ -146,6 +146,53 @@ class MarkdownTests(unittest.TestCase):
         again = MarkdownRenderer().render(self.findings, self.metadata)
         self.assertEqual(self.out, again)
 
+    def test_confidence_stated_once_not_per_section(self) -> None:
+        # #44: "evidence quality" (the header confidence phrasing) appears exactly once,
+        # instead of being repeated in every section.
+        self.assertEqual(self.out.count("evidence quality"), 1)
+
+    def test_header_confidence_carries_its_reason(self) -> None:
+        # #44: the single confidence line explains itself, not just a bare label.
+        self.assertIn("too small", self.out)  # the fixture's low-confidence reason
+
+    def test_section_confidence_shown_only_when_it_differs(self) -> None:
+        # Fixture cadence is 'moderate' vs overall 'low' -> the divergence is surfaced.
+        self.assertIn("· confidence: moderate", self.out)
+        self.assertNotIn("· confidence: low", self.out)
+
+    def test_recent_column_hidden_when_no_video_is_recent(self) -> None:
+        # #43: fixture videos are all non-recent, so the dead column is dropped.
+        self.assertNotIn("Recent", self.out)
+
+    def test_recent_column_shown_when_a_video_is_recent(self) -> None:
+        f = _findings()
+        ranking = (
+            replace(f.outliers.ranking[0], is_recent=True),
+            *f.outliers.ranking[1:],
+        )
+        f2 = replace(f, outliers=replace(f.outliers, ranking=ranking))
+        out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
+        self.assertIn("Recent", out)
+        self.assertIn("yes", out)
+
+    def test_baseline_rounded_to_significant_figures(self) -> None:
+        # #47: a six-figure baseline from a sample is false precision; show magnitude.
+        f = _findings()
+        f2 = replace(f, outliers=replace(f.outliers, baseline_views_per_day=143_747.0))
+        out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
+        self.assertIn("144,000", out)
+        self.assertNotIn("143,747", out)
+
+    def test_small_sample_baseline_carries_a_caveat(self) -> None:
+        # #47: fixture n=3 (< 10) -> the baseline is flagged as volatile.
+        self.assertIn("Small sample", self.out)
+
+    def test_adequate_sample_has_no_small_sample_caveat(self) -> None:
+        f = _findings()
+        f2 = replace(f, outliers=replace(f.outliers, sample_size=50))
+        out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
+        self.assertNotIn("Small sample", out)
+
 
 class JsonTests(unittest.TestCase):
     def setUp(self) -> None:

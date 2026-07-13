@@ -32,9 +32,18 @@ from creatoros.metrics import compute, registry
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DB_PATH = REPO_ROOT / "database" / "creatoros.db"
 
-# Below this age, views/day is a spike off a tiny denominator and may not hold. Flagged,
-# never dropped — the reader decides.
-RECENT_DAYS = 2.0
+# Within this window of upload, views/day is still inflated by the launch spike and may
+# not hold, so a fresh video should not be read as a settled outlier. Two days almost
+# never fired — the most recent uploads were already older — leaving a dead column
+# (issue #43). A week is the honest window over which the spike distorts the rate.
+# Flagged, never dropped — the reader decides.
+RECENT_DAYS = 7.0
+
+# Cohen's d is unstable when a group is tiny: it can read as an enormous effect from a
+# handful of videos (issue #42 — d=-3.45 from 2 vs 2, beside a "low confidence" label).
+# Below this per-group size we withhold the effect size; the group means and their
+# difference still render as descriptive facts, but the statistic is not made up.
+MIN_GROUP_FOR_EFFECT_SIZE = 5
 
 # The title metrics compared for Q2. Explicit until metrics carry a `category` field
 # (roadmap #19); this then becomes a registry filter (category == "title") and new title
@@ -60,8 +69,12 @@ def _confidence(n: int) -> Confidence:
 
 
 def _cohens_d(above: list[float], below: list[float]) -> float | None:
-    """Standardized mean difference between two groups; None if too few to estimate."""
-    if len(above) < 2 or len(below) < 2:
+    """Standardized mean difference between two groups; None if too few to estimate.
+
+    Requires ``MIN_GROUP_FOR_EFFECT_SIZE`` per group: below that the statistic is noise
+    wearing a decimal point (issue #42), so it is withheld rather than reported.
+    """
+    if len(above) < MIN_GROUP_FOR_EFFECT_SIZE or len(below) < MIN_GROUP_FOR_EFFECT_SIZE:
         return None
     n1, n2 = len(above), len(below)
     pooled_var = (

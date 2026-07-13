@@ -119,6 +119,27 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(length.above_n, 2)
         self.assertEqual(length.below_n, 1)
 
+    def test_effect_size_withheld_for_small_groups(self) -> None:
+        # #42: at 2 vs 1 the effect size is noise; means/difference stay, d is withheld.
+        f = _analyze(VIDEOS)
+        for c in f.titles.features:
+            self.assertIsNone(c.effect_size)
+            self.assertIsNotNone(c.difference)  # descriptive facts still reported
+
+    def test_effect_size_reported_when_both_groups_are_adequate(self) -> None:
+        # Ten videos, same age -> baseline is the median rate; five sit above, five
+        # below. Titles vary in length within each group (non-zero variance), so with
+        # 5 per group the effect size is estimated rather than withheld.
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(10)
+        ]
+        f = _analyze(videos)
+        length = {c.metric: c for c in f.titles.features}["title_length"]
+        self.assertEqual(length.above_n, 5)
+        self.assertEqual(length.below_n, 5)
+        self.assertIsNotNone(length.effect_size)
+
 
 class CadenceTests(unittest.TestCase):
     def test_regular_cadence_is_labelled(self) -> None:

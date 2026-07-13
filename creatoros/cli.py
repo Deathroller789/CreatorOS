@@ -80,6 +80,15 @@ def run_report(
         raise analyze.AnalyzeError(
             "channel has no videos to analyze; check the URL points at a channel"
         )
+    if len(videos) < limit:
+        # Never hide a shortfall (ADR-009 / issue #41): the whole analysis rests on this
+        # sample, and the user asked for more. State requested vs received plainly
+        # rather than let a smaller sample pass unremarked.
+        print(
+            f"  requested {limit} videos, received {len(videos)} "
+            "(the channel's Videos tab returned fewer — Shorts and live streams are "
+            "listed separately, and some videos may be unavailable)."
+        )
     # Transcripts are optional: the V1 report uses metadata only, so absence is a
     # note, not a failure.
     print(
