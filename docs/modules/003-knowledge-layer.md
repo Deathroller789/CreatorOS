@@ -42,9 +42,11 @@ permanent, reports are disposable" stops being an aspiration and becomes a store
 
 ## The rules every stored fact obeys
 
-- **History is immutable and append-only.** A snapshot is written once and never edited or
-  deleted. New analysis appends; it never overwrites. Corrections are new snapshots, not
-  edits to old ones.
+- **History is immutable and append-only.** A snapshot is written once and **never modified
+  in place**, and never deleted. New analysis appends; it never overwrites. A correction is
+  a **new revision** — a fresh entry that supersedes an earlier one by referencing it — never
+  an edit to the original. The superseded entry stays readable exactly as first recorded, so
+  what the system knew, and when, is always recoverable. History is added to, never rewritten.
 - **Never recompute the past.** When metrics or intelligence code evolves, old snapshots
   stay exactly as they were written — computed under their own `metric_engine_version`. Re-
   deriving history with today's code would silently rewrite what the system "knew" and
@@ -55,10 +57,32 @@ permanent, reports are disposable" stops being an aspiration and becomes a store
 - **Descriptive, not predictive.** Storing history and describing change over time is
   description. Knowledge is the _substrate_ a future prediction layer would need, but it
   makes no forecast itself — the same discipline the rest of the system holds to.
-- **Provenance travels with every fact.** A snapshot is meaningless without its `generated_at`,
-  sample size, and versions. They are stored with it, so it can be read and trusted years
-  later (which is exactly what the finding-schema-version work must guarantee — see the
-  companion versioning note).
+- **Provenance travels with every fact.** A snapshot is meaningless without knowing what
+  produced it; a full provenance header is stored with every entry (see the next section) so
+  it can be read and trusted years later.
+
+## Provenance — what every entry records
+
+An archived snapshot is only trustworthy if you can tell exactly where it came from and
+under what assumptions it was computed. Every Knowledge entry therefore stores, alongside
+the findings themselves, an immutable provenance header written once with the entry and
+never changed:
+
+| Field | Meaning | Today |
+|-------|---------|-------|
+| CreatorOS version | the package version that produced the snapshot | `ReportMetadata.creatoros_version` |
+| Metric engine version | the metrics code the findings were computed under | `ReportMetadata.metric_engine_version` |
+| Findings schema version | the shape of the `ChannelFindings` contract itself, so an old entry stays readable after the contract changes | **new** — owned by the versioning work (#34); distinct from today's `report_format_version`, which versions a *report*, not the findings |
+| Timestamp | when the snapshot was generated, UTC | `ReportMetadata.generated_at` |
+| Source channel | the channel the findings describe | `ReportMetadata.channel_id` |
+| Source findings identifier | a stable id for this exact snapshot, so a revision can name what it supersedes and a consumer can cite one specific entry | **new** — required for append-only revisions and traceability |
+
+Four of the six fields already exist on [`ReportMetadata`](../../creatoros/reporting/metadata.py);
+the two marked **new** — a findings _schema_ version and a stable snapshot identifier — are
+the additions this layer needs, and they are the reason the versioning-strategy work is a
+prerequisite. Together the six make every historical fact traceable to the code, the
+contract, the moment, and the source that produced it — the guarantee the whole layer rests
+on.
 
 ## Inputs
 
