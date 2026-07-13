@@ -131,6 +131,18 @@ stopped being trustworthy. Keeping that line sharp is exactly what will let a cr
 and the shape classes below are two axes of the same thing — a Level-1 fact has a scalar shape, a
 Level-2 pattern is corpus or temporal, a Level-3 relationship is comparative.
 
+An explanation earns its place the same way — and only that way. A "why" is not made true by
+sounding true:
+
+> **An explanation is never accepted because it is persuasive. It is accepted only because it is
+> supported by evidence.**
+
+Persuasive language is not evidence. A fluent, confident account of *why* a video performed
+carries no weight of its own; a Level-4 explanation derives its legitimacy entirely from the
+Level 1–3 evidence it cites. Strip the evidence away and the prose is worth nothing, however
+convincing it reads — which is precisely why synthesis must cite, and can never contradict, the
+evidence beneath it.
+
 ### The evidence taxonomy
 
 Evidence also varies by **shape**, which fixes which layer produces it and whether it can be
@@ -424,3 +436,17 @@ rather than distort to fit.
 - Only then build corpus evidence as additive Derived producers + Findings groups, method chosen
   by RFC-001's spike.
 - Hold temporal/historical evidence for the Knowledge layer, and synthesis for last.
+
+## Closing principle
+
+Everything above serves one disposition — the disposition this whole framework exists to protect:
+
+> **CreatorOS is designed to change its mind.**
+
+Every conclusion it reaches is provisional. Stronger evidence replaces weaker evidence; evidence
+from many independent classes outweighs an isolated observation; and **convergence outweighs
+confidence** — how certain a single line of evidence sounds matters less than whether independent
+lines agree. Changing a conclusion when better evidence appears is not a failure of the system or a
+sign it was wrong to trust; it is the system working exactly as intended. A CreatorOS that could
+not revise itself would have stopped being accountable to evidence — and accountability to
+evidence is the only thing this document has ever been about.
