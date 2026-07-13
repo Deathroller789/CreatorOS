@@ -59,6 +59,14 @@ A version bumps on a change to **shape or definition**, never on a change to a *
 new channel, a new view count, a different timing — none of these touch any version. This is
 the line that keeps versions meaningful.
 
+Stated plainly, as three rules:
+
+- **Only CreatorOS uses Semantic Versioning.** It is the sole SemVer number in the system.
+- **Every schema uses a simple, monotonically increasing integer** — `1`, `2`, `3`. No
+  major/minor/patch, no dots, no gaps reused.
+- **A schema version represents contract *shape* only, never values.** It changes when the
+  structure changes and at no other time.
+
 ## When each changes
 
 | Version | Scheme | Lives in | Bumps when | Does **not** bump when |
@@ -78,6 +86,35 @@ Two axes people conflate, kept explicit here:
   either can change without the other.
 - **Report format vs findings schema** are independent. A report can be restructured without
   the findings changing, and findings can change without touching a report's layout.
+
+## Compatibility
+
+Not every contract carries the same compatibility promise, because not every contract is
+persisted.
+
+- **Findings schema — read-backward-compatible, as a standing goal.** Findings are stored
+  permanently by the knowledge layer, so a newer CreatorOS release **should continue to read
+  older findings schemas whenever reasonably possible**. A schema bump is expected to be
+  *additive* by default — a new optional field, a new finding group — which older readers can
+  ignore and newer readers can treat as absent on old entries. A genuinely breaking change
+  (a field removed or retyped) is allowed but is the exceptional case, and it is what turns
+  the optional "schema migration" work (below) from a nicety into a requirement. History is
+  never rewritten to fit a new schema; the reader adapts to the old shape, not the reverse.
+- **Report format — no backward-compatibility promise.** Reports are disposable and
+  re-rendered from findings on demand, so there is nothing old to keep reading. The version
+  exists only to label a report a human happened to save; CreatorOS is not obligated to parse
+  an old one (and by "never parse rendered output", it will not).
+- **Metric engine — not a compatibility concern, a provenance one.** Its version is never
+  used to *read* anything; it records which code produced a stored snapshot so history stays
+  interpretable. Old snapshots are never recomputed under a new engine version (module 003).
+- **Benchmark schema — best-effort.** Records are local history; a reader of an old record
+  should degrade gracefully, but no strong promise is made.
+
+The load-bearing commitment is the first one: **future releases keep reading older findings
+schemas whenever reasonably possible**, because that is what lets the knowledge layer promise
+permanence without freezing the contract forever. When "reasonably possible" runs out, the
+schema-migration research (optional future issue) is the escape hatch — designed only when a
+real read-back across an incompatible bump first occurs, never speculatively.
 
 ## Alternatives
 
