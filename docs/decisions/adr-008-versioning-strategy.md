@@ -1,6 +1,6 @@
 # ADR-008: Versioning strategy — one software version, independent contract schemas
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-13
 
 ## Context
