@@ -72,6 +72,6 @@ Keep them short. A record that fits on one screen gets read; a 2,000-word one do
 | [ADR-007](adr-007-report-export-command-surface.md) | The report export command surface (`export` + renderer registry) | Proposed |
 | [ADR-008](adr-008-versioning-strategy.md) | Versioning strategy (one software version, independent contract schemas) | Proposed |
 | [ADR-009](adr-009-error-philosophy.md) | Error philosophy (categories, exit codes, and user experience) | Accepted |
-| [ADR-010](adr-010-persistence-strategy.md) | Persistence philosophy (persist captures, recompute derivations) | Proposed |
+| [ADR-010](adr-010-persistence-strategy.md) | Persistence philosophy (persist captures, recompute derivations) | Accepted |
 
 _ADRs are authored when a decision is actually made, not before._

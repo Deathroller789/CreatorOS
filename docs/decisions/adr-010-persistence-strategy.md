@@ -1,6 +1,6 @@
 # ADR-010: Persistence philosophy — what deserves to become history
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-13
 
 ## Context
@@ -69,9 +69,39 @@ So the four-kind hierarchy collapses to one line:
 
 > **Persist captures. Recompute derivations.**
 
+**Persistence is about preserving history, not avoiding computation.**
+This is the core law: CreatorOS never persists something because it is expensive to recompute —
+only because recomputing it would lose historical truth.
+Cost is a *caching* concern (see Alternatives); history is the only thing that earns a permanent
+record.
+A derivation that is slow is cached, never historicized; a capture that is irreproducible is
+persisted, however cheap it was to obtain.
+
 The persisted set is precisely the set of irreproducible captures, and nothing more.
 A capture cannot drift, because it can never be regenerated to disagree with itself; a
 derivation is never stored, so it can never go stale.
+
+### Invariant — persisted layers never source each other
+
+**No persisted artifact may become the source of truth for another.**
+Every persisted layer must always remain derivable from its own canonical source — ultimately
+**Raw**, the single root capture — never from a sibling's stored or rendered output.
+The dependency direction is fixed and one-way:
+
+```
+Raw  ->  Derived metrics  ->  Findings  ->  Knowledge
+```
+
+- Metrics derive from Raw; Findings from metrics over Raw; temporal Knowledge from the Findings
+  archive. Each traces back to Raw, the canonical capture — not to a sibling's output.
+- **Reports are a serialization sink, never a source.** A renderer serializes Findings and
+  nothing ever reads a report back in (ADR-007). Reports have no downstream.
+
+This forbids the drift this project must never allow: a Report quietly becoming an input to
+Knowledge, or one stored artifact bootstrapping another. If knowledge could be rebuilt from a
+rendered report, the report's presentation choices would silently become facts, and the
+architecture would invert. Persisted truth flows one way, from the root capture outward, and is
+never fed by what sits downstream of it.
 
 ### Storage mechanics (resolving Module 003's deferred question)
 
