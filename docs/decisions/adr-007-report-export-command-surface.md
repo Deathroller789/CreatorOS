@@ -1,6 +1,6 @@
 # ADR-007: The report export command surface
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-12
 
 ## Context
