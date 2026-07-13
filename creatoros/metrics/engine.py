@@ -34,18 +34,31 @@ class Metric:
     unit: str
     depends_on: tuple[str, ...]
     fn: Callable[..., Any]
+    # Optional grouping so a consumer can request a family of metrics ("title",
+    # "corpus:transcript", ...) by kind instead of naming each one. This is the seam the
+    # intelligence layer discovers evidence through (ADR-006): a metric with a category
+    # is *evidence* the analysis auto-consumes; a metric with no category is internal
+    # plumbing (a baseline, a cadence statistic) consumed by name. Defaulted last so
+    # existing positional Metric(...) construction is unaffected.
+    category: str | None = None
 
 
 _REGISTRY: dict[str, Metric] = {}
 
 
 def metric(
-    *, scope: Scope, unit: str, depends_on: Iterable[str] = ()
+    *,
+    scope: Scope,
+    unit: str,
+    depends_on: Iterable[str] = (),
+    category: str | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register the decorated pure function as a derived metric.
 
     The function's parameter names must match ``depends_on`` exactly, in order — that is
     the whole contract, and it is checked at import time so a typo fails loudly.
+    ``category`` optionally groups the metric into an evidence family (e.g. ``"title"``,
+    ``"corpus:transcript"``) that the intelligence layer discovers and consumes.
     """
     deps = tuple(depends_on)
 
@@ -63,15 +76,38 @@ def metric(
                 f"metric {name!r}: parameters {params} must match "
                 f"depends_on {deps} exactly, in order"
             )
-        _REGISTRY[name] = Metric(name, scope, unit, deps, fn)
+        _REGISTRY[name] = Metric(name, scope, unit, deps, fn, category=category)
         return fn
 
     return decorate
 
 
-def registry() -> dict[str, Metric]:
-    """Return a copy of every registered metric, keyed by name."""
-    return dict(_REGISTRY)
+def registry(category: str | None = None) -> dict[str, Metric]:
+    """Return registered metrics keyed by name.
+
+    With ``category`` set, return only the metrics in that family — so a consumer can
+    ask for "every title metric" without hard-coding their names (ADR-006: adding a
+    metric to a family must not require editing the code that consumes the family).
+    """
+    if category is None:
+        return dict(_REGISTRY)
+    return {name: m for name, m in _REGISTRY.items() if m.category == category}
+
+
+def evidence_categories(scope: Scope | None = None) -> list[str]:
+    """Every distinct evidence ``category`` currently registered, sorted.
+
+    The discovery seam for the intelligence layer: it asks which evidence families
+    exist rather than naming them, so a new metric family surfaces with no analysis
+    change (ADR-006). ``scope`` narrows to video- or channel-scope families.
+    """
+    return sorted(
+        {
+            m.category
+            for m in _REGISTRY.values()
+            if m.category and (scope is None or m.scope == scope)
+        }
+    )
 
 
 @dataclass(frozen=True, slots=True)

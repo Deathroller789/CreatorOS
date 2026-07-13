@@ -3,7 +3,7 @@
   "metadata": {
     "creatoros_version": "0.0.0-test",
     "metric_engine_version": "0.0.0-test",
-    "report_format_version": 1,
+    "report_format_version": 2,
     "generated_at": "2026-01-11T00:00:00+00:00",
     "channel_id": "UC1",
     "channel_title": "Test Channel",
@@ -21,6 +21,10 @@
     "sample_size": 3,
     "outliers": {
       "baseline_views_per_day": 100.0,
+      "baseline_iqr_low": 60.0,
+      "baseline_iqr_high": 175.0,
+      "baseline_basis_n": 3,
+      "baseline_excluded_recent": 0,
       "sample_size": 3,
       "ranking": [
         {
@@ -59,27 +63,62 @@
         "reason": "n=3: too small."
       }
     },
-    "titles": {
-      "sample_size": 3,
-      "above_n": 2,
-      "below_n": 1,
-      "features": [
-        {
-          "metric": "title_length",
-          "unit": "characters",
-          "above_mean": 5.0,
-          "below_mean": 12.0,
-          "difference": -7.0,
-          "effect_size": -0.9,
-          "above_n": 2,
-          "below_n": 1
+    "feature_groups": [
+      {
+        "category": "title",
+        "label": "Title evidence",
+        "sample_size": 3,
+        "above_n": 2,
+        "below_n": 1,
+        "features": [
+          {
+            "metric": "title_length",
+            "unit": "characters",
+            "above_mean": 5.0,
+            "below_mean": 12.0,
+            "difference": -7.0,
+            "effect_size": -0.9,
+            "above_n": 2,
+            "below_n": 1
+          }
+        ],
+        "confidence": {
+          "level": "low",
+          "reason": "n=3: too small."
         }
-      ],
-      "confidence": {
-        "level": "low",
-        "reason": "n=3: too small."
       }
-    },
+    ],
+    "corpus_groups": [
+      {
+        "category": "corpus:title",
+        "label": "Recurring title phrases",
+        "basis_n": 3,
+        "sample_size": 3,
+        "phrases": [
+          {
+            "text": "big win",
+            "size": 2,
+            "document_count": 2,
+            "document_ratio": 0.6666666666666666,
+            "above_count": null,
+            "below_count": null
+          },
+          {
+            "text": "title",
+            "size": 1,
+            "document_count": 2,
+            "document_ratio": 0.6666666666666666,
+            "above_count": null,
+            "below_count": null
+          }
+        ],
+        "confidence": {
+          "level": "low",
+          "reason": "n=3: too small."
+        },
+        "coverage_note": null
+      }
+    ],
     "cadence": {
       "sample_size": 3,
       "median_interval_days": 10.0,

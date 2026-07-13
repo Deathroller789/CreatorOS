@@ -24,6 +24,7 @@ from creatoros.metrics.engine import (
     Metric,
     MetricError,
     compute,
+    evidence_categories,
     metric,
     registry,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "Metric",
     "MetricError",
     "compute",
+    "evidence_categories",
     "metric",
     "registry",
 ]

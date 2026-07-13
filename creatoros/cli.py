@@ -89,11 +89,16 @@ def run_report(
             "(the channel's Videos tab returned fewer — Shorts and live streams are "
             "listed separately, and some videos may be unavailable)."
         )
-    # Transcripts are optional: the V1 report uses metadata only, so absence is a
-    # note, not a failure.
+    # Transcripts feed corpus evidence (recurring openings/endings/phrases). Absence is
+    # a note, not a failure: a video with no transcript simply contributes no spoken
+    # evidence (ADR-009). Attach the text as a raw field so the corpus metrics can read
+    # it — present-but-None is how "no transcript" is represented.
+    transcript_text = {t["video_id"]: t["text"] for t in transcripts}
+    for v in videos:
+        v["transcript_text"] = transcript_text.get(v["video_id"])
     print(
         f"  {len(transcripts)}/{len(videos)} transcripts captured "
-        "(report uses video metadata only)."
+        "(feeding corpus evidence where present)."
     )
 
     _step("Computing metrics...")

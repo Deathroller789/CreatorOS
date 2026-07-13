@@ -73,5 +73,6 @@ Keep them short. A record that fits on one screen gets read; a 2,000-word one do
 | [ADR-008](adr-008-versioning-strategy.md) | Versioning strategy (one software version, independent contract schemas) | Accepted |
 | [ADR-009](adr-009-error-philosophy.md) | Error philosophy (categories, exit codes, and user experience) | Accepted |
 | [ADR-010](adr-010-persistence-strategy.md) | Persistence philosophy (persist captures, recompute derivations) | Accepted |
+| [ADR-011](adr-011-non-scalar-evidence-shape.md) | Non-scalar (corpus) evidence shape (per-video tokens are metrics; recurrence is analysis) | Accepted |
 
 _ADRs are authored when a decision is actually made, not before._
