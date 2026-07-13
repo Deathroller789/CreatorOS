@@ -112,6 +112,35 @@ class RunReportTests(unittest.TestCase):
             cli.run_report(URL, limit=50, db_path=db, output_dir=Path(tmp), now=NOW)
         self.assertIn("no videos", str(ctx.exception))
 
+    def test_discloses_when_fewer_videos_are_received_than_requested(self) -> None:
+        # #41: 3 videos returned for a --limit of 50 must be surfaced, not hidden.
+        fetch_channel, fetch_transcript = _mock_ingest(VIDEOS)
+        buf = io.StringIO()
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            fetch_channel,
+            fetch_transcript,
+            redirect_stdout(buf),
+        ):
+            db, out = Path(tmp) / "c.db", Path(tmp) / "reports"
+            cli.run_report(URL, limit=50, db_path=db, output_dir=out, now=NOW)
+        output = buf.getvalue()
+        self.assertIn("requested 50", output)
+        self.assertIn("received 3", output)
+
+    def test_no_under_delivery_note_when_the_sample_is_full(self) -> None:
+        fetch_channel, fetch_transcript = _mock_ingest(VIDEOS)
+        buf = io.StringIO()
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            fetch_channel,
+            fetch_transcript,
+            redirect_stdout(buf),
+        ):
+            db, out = Path(tmp) / "c.db", Path(tmp) / "reports"
+            cli.run_report(URL, limit=len(VIDEOS), db_path=db, output_dir=out, now=NOW)
+        self.assertNotIn("requested", buf.getvalue())
+
     def test_missing_transcripts_do_not_fail_the_run(self) -> None:
         fetch_channel, fetch_transcript = _mock_ingest(VIDEOS, transcript=None)
         with (
