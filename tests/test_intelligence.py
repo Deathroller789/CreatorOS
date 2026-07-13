@@ -119,6 +119,15 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(length.above_n, 2)
         self.assertEqual(length.below_n, 1)
 
+    def test_structural_title_evidence_flows_into_q2_by_category(self) -> None:
+        # The Evidence Engine backbone: a new title-family metric appears in the title
+        # comparison with no change to the intelligence module (ADR-006).
+        f = _analyze(VIDEOS)
+        metrics = {c.metric for c in f.titles.features}
+        self.assertIn("title_has_question", metrics)
+        self.assertIn("title_has_number", metrics)
+        self.assertIn("title_caps_ratio", metrics)
+
     def test_effect_size_withheld_for_small_groups(self) -> None:
         # #42: at 2 vs 1 the effect size is noise; means/difference stay, d is withheld.
         f = _analyze(VIDEOS)

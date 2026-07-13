@@ -45,10 +45,15 @@ RECENT_DAYS = 7.0
 # difference still render as descriptive facts, but the statistic is not made up.
 MIN_GROUP_FOR_EFFECT_SIZE = 5
 
-# The title metrics compared for Q2. Explicit until metrics carry a `category` field
-# (roadmap #19); this then becomes a registry filter (category == "title") and new title
-# metrics need no change here — the design goal from ADR-006.
-TITLE_FEATURES = ("title_length", "title_word_count")
+
+def _title_feature_names() -> list[str]:
+    """Every metric in the ``"title"`` family, sorted for deterministic report order.
+
+    Q2 compares whatever the engine registers as a title metric — the roadmap-#19
+    category filter (ADR-006). Adding a title-structure metric surfaces it here with no
+    change to this module: the design goal, now realized.
+    """
+    return sorted(registry(category="title"))
 
 
 class IntelligenceError(Exception):
@@ -177,7 +182,7 @@ def _analyze_titles(videos: list[dict], derived) -> TitleFindings:
     units = {name: m.unit for name, m in registry().items()}
     features: list[TitleFeatureComparison] = []
     if above and below:
-        for name in TITLE_FEATURES:
+        for name in _title_feature_names():
             a = _feature_values(derived, above, name)
             b = _feature_values(derived, below, name)
             if not a or not b:
