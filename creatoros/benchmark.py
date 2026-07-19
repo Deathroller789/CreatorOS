@@ -28,6 +28,7 @@ Run it with::
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import platform
 import sqlite3
@@ -156,10 +157,20 @@ def _load_rows(channel: str, db_path: Path) -> tuple[dict, list[dict]]:
                 (raw_channel["channel_id"],),
             )
         ]
+        # Mirror the intelligence loader: every video carries a transcript_text field
+        # (None when absent) so the corpus metrics have a stable raw field to read.
+        transcripts: dict[str, str | None] = {}
+        with contextlib.suppress(sqlite3.OperationalError):
+            transcripts = {
+                r["video_id"]: r["text"]
+                for r in conn.execute("SELECT video_id, text FROM transcripts")
+            }
     finally:
         conn.close()
     if not videos:
         raise BenchmarkError(f"channel {channel!r} has no stored videos")
+    for v in videos:
+        v["transcript_text"] = transcripts.get(v["video_id"])
     return raw_channel, videos
 
 

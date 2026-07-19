@@ -14,9 +14,11 @@ from creatoros.intelligence.findings import (
     ChannelFindings,
     ChannelRef,
     Confidence,
+    CorpusGroup,
+    CorpusPhrase,
+    FeatureComparison,
+    FeatureGroup,
     OutlierFindings,
-    TitleFeatureComparison,
-    TitleFindings,
     VideoOutlier,
 )
 from creatoros.reporting import (
@@ -46,6 +48,10 @@ def _findings() -> ChannelFindings:
         sample_size=3,
         outliers=OutlierFindings(
             baseline_views_per_day=100.0,
+            baseline_iqr_low=60.0,
+            baseline_iqr_high=175.0,
+            baseline_basis_n=3,
+            baseline_excluded_recent=0,
             sample_size=3,
             ranking=(
                 VideoOutlier(
@@ -60,16 +66,46 @@ def _findings() -> ChannelFindings:
             ),
             confidence=Confidence("low", "n=3: too small."),
         ),
-        titles=TitleFindings(
-            sample_size=3,
-            above_n=2,
-            below_n=1,
-            features=(
-                TitleFeatureComparison(
-                    "title_length", "characters", 5.0, 12.0, -7.0, -0.9, 2, 1
+        feature_groups=(
+            FeatureGroup(
+                category="title",
+                label="Title patterns",
+                grouping="above vs below the channel baseline",
+                sample_size=3,
+                above_n=2,
+                below_n=1,
+                features=(
+                    FeatureComparison(
+                        metric="title_length",
+                        label="Title length",
+                        unit="characters",
+                        above_mean=5.0,
+                        below_mean=12.0,
+                        difference=-7.0,
+                        effect_size=-0.9,
+                        above_n=2,
+                        below_n=1,
+                        strength="weak",
+                    ),
                 ),
+                confidence=Confidence("low", "n=3: too small."),
             ),
-            confidence=Confidence("low", "n=3: too small."),
+        ),
+        corpus_groups=(
+            CorpusGroup(
+                category="corpus:title",
+                label="Words you reuse in titles",
+                basis_n=3,
+                sample_size=3,
+                above_n=0,
+                below_n=0,
+                phrases=(
+                    CorpusPhrase("big win", 2, 2, 2 / 3, None, None, "moderate"),
+                    CorpusPhrase("title", 1, 2, 2 / 3, None, None, "moderate"),
+                ),
+                confidence=Confidence("low", "n=3: too small."),
+                coverage_note=None,
+            ),
         ),
         cadence=CadenceFindings(
             sample_size=3,
@@ -104,13 +140,13 @@ class MetadataTests(unittest.TestCase):
         m = build_metadata(_findings(), now=NOW)
         self.assertTrue(m.creatoros_version)
         self.assertEqual(m.metric_engine_version, m.creatoros_version)
-        self.assertEqual(m.report_format_version, 1)
+        self.assertEqual(m.report_format_version, 3)
         self.assertEqual(m.generated_at, "2026-01-11T00:00:00+00:00")
         self.assertEqual(m.channel_id, "UC1")
         self.assertEqual(m.sample_size, 3)
 
     def test_confidence_summary_is_the_most_conservative_level(self) -> None:
-        # Groups are low/low/moderate -> the report summary is the worst: low.
+        # Primary groups are low/moderate/low -> the report summary is the worst: low.
         m = build_metadata(_findings(), now=NOW)
         self.assertIn("low", m.confidence_summary)
         self.assertIn("evidence quality", m.confidence_summary)
@@ -127,15 +163,16 @@ class MarkdownTests(unittest.TestCase):
 
     def test_contains_provenance_and_confidence_as_evidence_quality(self) -> None:
         self.assertIn(self.metadata.creatoros_version, self.out)
-        self.assertIn("Metric engine version", self.out)
-        self.assertIn("evidence quality", self.out)
+        self.assertIn("engine", self.out)
+        self.assertIn("Evidence quality", self.out)
 
     def test_contains_every_finding(self) -> None:
-        # Outliers (all ranked videos), the title comparison, and cadence all appear.
+        # Performance (ranked videos), the title comparison, corpus phrases, cadence.
         self.assertIn("100 views/day", self.out)  # baseline
         for v in self.findings.outliers.ranking:
             self.assertIn(f"{v.performance_index:.2f}x", self.out)
-        self.assertIn("title_length", self.out)
+        self.assertIn("Title length", self.out)
+        self.assertIn("big win", self.out)  # corpus phrase
         self.assertIn("regular", self.out)
 
     def test_escapes_pipes_in_titles(self) -> None:
@@ -149,7 +186,7 @@ class MarkdownTests(unittest.TestCase):
     def test_confidence_stated_once_not_per_section(self) -> None:
         # #44: "evidence quality" (the header confidence phrasing) appears exactly once,
         # instead of being repeated in every section.
-        self.assertEqual(self.out.count("evidence quality"), 1)
+        self.assertEqual(self.out.count("Evidence quality"), 1)
 
     def test_header_confidence_carries_its_reason(self) -> None:
         # #44: the single confidence line explains itself, not just a bare label.
@@ -162,7 +199,7 @@ class MarkdownTests(unittest.TestCase):
 
     def test_recent_column_hidden_when_no_video_is_recent(self) -> None:
         # #43: fixture videos are all non-recent, so the dead column is dropped.
-        self.assertNotIn("Recent", self.out)
+        self.assertNotIn("Still new", self.out)
 
     def test_recent_column_shown_when_a_video_is_recent(self) -> None:
         f = _findings()
@@ -172,11 +209,11 @@ class MarkdownTests(unittest.TestCase):
         )
         f2 = replace(f, outliers=replace(f.outliers, ranking=ranking))
         out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
-        self.assertIn("Recent", out)
+        self.assertIn("Still new", out)
         self.assertIn("yes", out)
 
     def test_baseline_rounded_to_significant_figures(self) -> None:
-        # #47: a six-figure baseline from a sample is false precision; show magnitude.
+        # #48: a six-figure baseline from a sample is false precision; show magnitude.
         f = _findings()
         f2 = replace(f, outliers=replace(f.outliers, baseline_views_per_day=143_747.0))
         out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
@@ -184,14 +221,28 @@ class MarkdownTests(unittest.TestCase):
         self.assertNotIn("143,747", out)
 
     def test_small_sample_baseline_carries_a_caveat(self) -> None:
-        # #47: fixture n=3 (< 10) -> the baseline is flagged as volatile.
+        # #48: fixture basis n=3 (< 10) -> the baseline is flagged as volatile.
         self.assertIn("Small sample", self.out)
 
     def test_adequate_sample_has_no_small_sample_caveat(self) -> None:
         f = _findings()
-        f2 = replace(f, outliers=replace(f.outliers, sample_size=50))
+        f2 = replace(f, outliers=replace(f.outliers, baseline_basis_n=50))
         out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
         self.assertNotIn("Small sample", out)
+
+    def test_corpus_split_columns_shown_when_present(self) -> None:
+        # When the above/below split is available, the corpus table carries it.
+        f = _findings()
+        split_phrase = replace(
+            f.corpus_groups[0].phrases[0], above_count=2, below_count=0
+        )
+        group = replace(
+            f.corpus_groups[0], phrases=(split_phrase,), above_n=6, below_n=6
+        )
+        f2 = replace(f, corpus_groups=(group,))
+        out = MarkdownRenderer().render(f2, build_metadata(f2, now=NOW))
+        self.assertIn("Stronger", out)
+        self.assertIn("Weaker", out)
 
 
 class JsonTests(unittest.TestCase):
@@ -214,8 +265,10 @@ class JsonTests(unittest.TestCase):
         self.assertEqual(ranking[0]["performance_index"], 2.0)
         self.assertEqual(doc["findings"]["outliers"]["baseline_views_per_day"], 100.0)
         self.assertEqual(doc["findings"]["cadence"]["regularity"], "regular")
-        feature = doc["findings"]["titles"]["features"][0]
+        feature = doc["findings"]["feature_groups"][0]["features"][0]
         self.assertEqual(feature["metric"], "title_length")
+        phrase = doc["findings"]["corpus_groups"][0]["phrases"][0]
+        self.assertEqual(phrase["text"], "big win")
 
     def test_render_is_deterministic(self) -> None:
         again = JsonRenderer().render(self.findings, self.metadata)
@@ -265,7 +318,8 @@ class GoldenRegressionTests(unittest.TestCase):
         for video in findings["outliers"]["ranking"]:
             self.assertIn(f"{video['performance_index']:.2f}x", md)
             self.assertIn(video["title"].replace("|", "\\|"), md)
-        self.assertIn(findings["titles"]["features"][0]["metric"], md)
+        self.assertIn(findings["feature_groups"][0]["features"][0]["label"], md)
+        self.assertIn(findings["corpus_groups"][0]["phrases"][0]["text"], md)
         self.assertIn(findings["cadence"]["regularity"], md)
 
 

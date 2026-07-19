@@ -6,18 +6,36 @@ import unittest
 from datetime import UTC, datetime
 from pathlib import Path
 
-from creatoros.metrics import Metric, MetricError, compute, metric, registry
+from creatoros.metrics import (
+    Metric,
+    MetricError,
+    compute,
+    evidence_categories,
+    metric,
+    registry,
+)
 
 NOW = datetime(2026, 1, 11, tzinfo=UTC)
 CHANNEL = {"channel_id": "UC123", "title": "Test Channel"}
 
 
-def _video(video_id: str, upload_date: str, view_count: int | None, title: str) -> dict:
+def _video(
+    video_id: str,
+    upload_date: str,
+    view_count: int | None,
+    title: str,
+    transcript_text: str | None = None,
+    duration: int | None = 600,
+) -> dict:
+    """A stored video row. Mirrors the real schema, including the optional columns
+    (transcript text, duration) the corpus and narrative metrics read."""
     return {
         "video_id": video_id,
         "upload_date": upload_date,
         "view_count": view_count,
         "title": title,
+        "transcript_text": transcript_text,
+        "duration": duration,
     }
 
 
@@ -38,10 +56,13 @@ class RegistryTests(unittest.TestCase):
             {
                 "upload_age_days",
                 "views_per_day",
+                "settled_views_per_day",
                 "performance_index",
                 "title_length",
-                "title_word_count",
-                "median_views_per_day",
+                "title_has_number",
+                "title_tokens",
+                "transcript_tokens",
+                "baseline_views_per_day",
                 "median_upload_interval_days",
                 "max_upload_interval_days",
                 "upload_interval_cv",
@@ -54,6 +75,16 @@ class RegistryTests(unittest.TestCase):
             with self.subTest(metric=name):
                 self.assertTrue(m.unit, f"{name} has no unit")
                 self.assertIn(m.scope, ("video", "channel"))
+
+    def test_evidence_families_are_discoverable_by_category(self) -> None:
+        # The discovery seam (ADR-006): the title family and the corpus families are
+        # advertised by category, so the intelligence layer finds them without a list.
+        cats = evidence_categories("video")
+        self.assertIn("title", cats)
+        self.assertIn("corpus:title", cats)
+        self.assertIn("corpus:transcript", cats)
+        # Plumbing metrics (baseline, cadence) carry no category and are not evidence.
+        self.assertIsNone(registry()["baseline_views_per_day"].category)
 
     def test_parameters_must_match_declared_dependencies(self) -> None:
         with self.assertRaises(MetricError):
@@ -100,11 +131,11 @@ class MetricTests(unittest.TestCase):
         viral = [*VIDEOS[:2], _video("v3", "20251212", 600_000, "Viral")]
         derived = compute(CHANNEL, viral, now=NOW)
         # Mean views/day would be ~6_716; the median ignores the outlier.
-        self.assertEqual(derived.channel["median_views_per_day"], 100.0)
+        self.assertEqual(derived.channel["baseline_views_per_day"], 100.0)
 
     def test_performance_index_is_a_multiple_of_the_channel_baseline(self) -> None:
         derived = compute(CHANNEL, VIDEOS, now=NOW)
-        self.assertEqual(derived.channel["median_views_per_day"], 100.0)
+        self.assertEqual(derived.channel["baseline_views_per_day"], 100.0)
         self.assertAlmostEqual(derived.videos["v3"]["performance_index"], 2.0)
         self.assertAlmostEqual(derived.videos["v1"]["performance_index"], 1.0)
         self.assertAlmostEqual(derived.videos["v2"]["performance_index"], 0.5)
@@ -113,6 +144,57 @@ class MetricTests(unittest.TestCase):
         derived = compute(CHANNEL, VIDEOS, now=NOW)
         self.assertEqual(derived.videos["v1"]["title_length"], len("Ten days old"))
         self.assertEqual(derived.videos["v1"]["title_word_count"], 3)
+
+
+class BaselineTests(unittest.TestCase):
+    def test_fresh_videos_are_excluded_from_the_baseline(self) -> None:
+        # Six settled videos at 100 views/day, plus a fresh spike at 9000. The settled
+        # median is 100; the spike must not drag the baseline up (issue #48).
+        settled = [
+            _video(f"s{i}", "20251212", 3_000, f"settled {i}") for i in range(6)
+        ]  # 30 days old -> 100 views/day each
+        spike = _video("fresh", "20260111", 9_000, "just posted")  # 0 days -> 9000
+        derived = compute(CHANNEL, [*settled, spike], now=NOW)
+        self.assertEqual(derived.channel["baseline_views_per_day"], 100.0)
+        self.assertEqual(derived.channel["baseline_basis_count"], 6)
+        # The fresh video still gets a performance index — it is ranked, not dropped.
+        self.assertIsNotNone(derived.videos["fresh"]["performance_index"])
+
+    def test_baseline_falls_back_to_all_videos_when_too_few_settled(self) -> None:
+        # Only two settled videos (< the floor of 5): excluding fresh ones would leave
+        # too little, so the baseline uses the whole sample. The median stays robust to
+        # the fresh spike even so (100, not dragged toward 9000).
+        videos = [
+            _video("a", "20251212", 3_000, "settled"),  # 100 views/day
+            _video("b", "20251212", 3_000, "settled"),  # 100 views/day
+            _video("c", "20260111", 9_000, "fresh"),  # 9000 views/day
+        ]
+        derived = compute(CHANNEL, videos, now=NOW)
+        self.assertEqual(derived.channel["baseline_basis_count"], 3)
+        self.assertEqual(derived.channel["baseline_views_per_day"], 100.0)
+
+    def test_baseline_reports_a_spread(self) -> None:
+        derived = compute(CHANNEL, VIDEOS, now=NOW)
+        low = derived.channel["baseline_iqr_low"]
+        high = derived.channel["baseline_iqr_high"]
+        self.assertIsNotNone(low)
+        self.assertLessEqual(low, high)
+
+
+class CorpusTokenTests(unittest.TestCase):
+    def test_title_tokens_are_normalized(self) -> None:
+        derived = compute(CHANNEL, VIDEOS, now=NOW)
+        self.assertEqual(derived.videos["v1"]["title_tokens"], ["ten", "days", "old"])
+
+    def test_transcript_tokens_present_when_text_is(self) -> None:
+        v = _video("t1", "20260101", 100, "Title", transcript_text="Hello, WORLD!")
+        derived = compute(CHANNEL, [v], now=NOW)
+        self.assertEqual(derived.videos["t1"]["transcript_tokens"], ["hello", "world"])
+
+    def test_transcript_tokens_are_none_without_text(self) -> None:
+        derived = compute(CHANNEL, VIDEOS, now=NOW)  # no transcript_text
+        self.assertIsNone(derived.videos["v1"]["transcript_tokens"])
+        self.assertIsNone(derived.videos["v1"]["transcript_opening_tokens"])
 
 
 class CadenceTests(unittest.TestCase):
@@ -173,15 +255,20 @@ class EngineTests(unittest.TestCase):
         self.assertIsNone(derived.videos["v4"]["views_per_day"])
         self.assertIsNone(derived.videos["v4"]["performance_index"])
         # v4 drops out of the series rather than poisoning the baseline.
-        self.assertEqual(derived.channel["median_views_per_day"], 100.0)
+        self.assertEqual(derived.channel["baseline_views_per_day"], 100.0)
 
     def test_only_pulls_in_transitive_dependencies(self) -> None:
         derived = compute(CHANNEL, VIDEOS, now=NOW, only=["performance_index"])
         self.assertEqual(
             set(derived.videos["v1"]),
-            {"performance_index", "views_per_day", "upload_age_days"},
+            {
+                "performance_index",
+                "views_per_day",
+                "settled_views_per_day",
+                "upload_age_days",
+            },
         )
-        self.assertEqual(set(derived.channel), {"median_views_per_day"})
+        self.assertEqual(set(derived.channel), {"baseline_views_per_day"})
         self.assertAlmostEqual(derived.videos["v3"]["performance_index"], 2.0)
 
     def test_requesting_an_unknown_metric_is_an_error(self) -> None:

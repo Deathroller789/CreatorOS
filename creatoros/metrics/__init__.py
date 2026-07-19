@@ -18,12 +18,13 @@ from __future__ import annotations
 # without ever entering the registry. Explicit over automatic discovery (ADR-006:
 # the repository, not a directory listing, is the source of truth for what is active).
 # Import order is irrelevant — dependencies resolve at compute time, not import time.
-from creatoros.metrics import channel, video  # noqa: F401
+from creatoros.metrics import channel, narrative, video  # noqa: F401
 from creatoros.metrics.engine import (
     Computed,
     Metric,
     MetricError,
     compute,
+    evidence_categories,
     metric,
     registry,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "Metric",
     "MetricError",
     "compute",
+    "evidence_categories",
     "metric",
     "registry",
 ]

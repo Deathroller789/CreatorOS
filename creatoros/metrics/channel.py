@@ -6,13 +6,89 @@ import statistics
 
 from creatoros.metrics.engine import metric
 
+# Below this many settled videos, excluding fresh uploads leaves too little to form a
+# baseline from, so we use the full sample rather than a two-video median (issue #48).
+# Above it, the baseline is the settled videos only — the representative set.
+_MIN_SETTLED_FOR_BASELINE = 5
 
-@metric(scope="channel", unit="views/day", depends_on=("views_per_day",))
-def median_views_per_day(views_per_day: list[float]) -> float | None:
-    """The channel's baseline. Median, not mean: one viral video must not move it."""
-    if not views_per_day:
+
+def _baseline_basis(
+    settled_views_per_day: list[float], views_per_day: list[float]
+) -> list[float]:
+    """The view-rate series the baseline is computed over.
+
+    Settled videos (launch spike passed) when there are enough of them; otherwise the
+    whole sample, since excluding recent uploads from a tiny channel would leave almost
+    nothing (issue #48). Deterministic: the choice depends only on the counts.
+    """
+    if len(settled_views_per_day) >= _MIN_SETTLED_FOR_BASELINE:
+        return settled_views_per_day
+    return views_per_day
+
+
+@metric(
+    scope="channel",
+    unit="views/day",
+    depends_on=("settled_views_per_day", "views_per_day"),
+)
+def baseline_views_per_day(
+    settled_views_per_day: list[float], views_per_day: list[float]
+) -> float | None:
+    """The channel's representative view rate: the median of settled videos.
+
+    Median, not mean, so one viral video cannot move it; settled, not most-recent, so a
+    launch spike cannot inflate it (issue #48). ``None`` when the sample is empty.
+    """
+    basis = _baseline_basis(settled_views_per_day, views_per_day)
+    if not basis:
         return None
-    return statistics.median(views_per_day)
+    return statistics.median(basis)
+
+
+@metric(
+    scope="channel",
+    unit="count",
+    depends_on=("settled_views_per_day", "views_per_day"),
+)
+def baseline_basis_count(
+    settled_views_per_day: list[float], views_per_day: list[float]
+) -> int:
+    """How many videos the baseline was actually computed over (its real sample)."""
+    return len(_baseline_basis(settled_views_per_day, views_per_day))
+
+
+@metric(
+    scope="channel",
+    unit="views/day",
+    depends_on=("settled_views_per_day", "views_per_day"),
+)
+def baseline_iqr_low(
+    settled_views_per_day: list[float], views_per_day: list[float]
+) -> float | None:
+    """The 25th percentile of the baseline basis — the low edge of typical performance.
+
+    Reported beside the median so the baseline reads as a spread, not a false-precise
+    point (issue #48). ``None`` with fewer than two videos (quartile undefined).
+    """
+    basis = _baseline_basis(settled_views_per_day, views_per_day)
+    if len(basis) < 2:
+        return None
+    return statistics.quantiles(basis, n=4)[0]
+
+
+@metric(
+    scope="channel",
+    unit="views/day",
+    depends_on=("settled_views_per_day", "views_per_day"),
+)
+def baseline_iqr_high(
+    settled_views_per_day: list[float], views_per_day: list[float]
+) -> float | None:
+    """The 75th percentile of the basis — the high edge of typical performance."""
+    basis = _baseline_basis(settled_views_per_day, views_per_day)
+    if len(basis) < 2:
+        return None
+    return statistics.quantiles(basis, n=4)[2]
 
 
 def _upload_intervals(upload_age_days: list[float]) -> list[float]:

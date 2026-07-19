@@ -1,4 +1,4 @@
-"""Tests for Channel Intelligence V1 (Q1 outliers, Q2 titles, Q3 cadence)."""
+"""Tests for Channel Intelligence (performance, feature groups, corpus, cadence)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,12 @@ from creatoros.intelligence import IntelligenceError, analyze_channel
 NOW = datetime(2026, 1, 11, tzinfo=UTC)
 
 
-def _write_db(path: Path, channel: dict, videos: list[dict]) -> None:
+def _write_db(
+    path: Path,
+    channel: dict,
+    videos: list[dict],
+    transcripts: dict[str, str] | None = None,
+) -> None:
     conn = sqlite3.connect(path)
     try:
         conn.execute(
@@ -22,8 +27,9 @@ def _write_db(path: Path, channel: dict, videos: list[dict]) -> None:
         )
         conn.execute(
             "CREATE TABLE videos (video_id TEXT, channel_id TEXT, title TEXT, "
-            "upload_date TEXT, view_count INTEGER, url TEXT)"
+            "upload_date TEXT, view_count INTEGER, url TEXT, duration INTEGER)"
         )
+        conn.execute("CREATE TABLE transcripts (video_id TEXT, text TEXT)")
         conn.execute(
             "INSERT INTO channels VALUES (:channel_id, :title, :handle, :url, "
             ":subscriber_count)",
@@ -32,9 +38,11 @@ def _write_db(path: Path, channel: dict, videos: list[dict]) -> None:
         for v in videos:
             conn.execute(
                 "INSERT INTO videos VALUES (:video_id, :channel_id, :title, "
-                ":upload_date, :view_count, :url)",
+                ":upload_date, :view_count, :url, :duration)",
                 v,
             )
+        for video_id, text in (transcripts or {}).items():
+            conn.execute("INSERT INTO transcripts VALUES (?, ?)", (video_id, text))
         conn.commit()
     finally:
         conn.close()
@@ -48,6 +56,7 @@ def _video(vid: str, upload_date: str, views: int | None, title: str) -> dict:
         "upload_date": upload_date,
         "view_count": views,
         "url": f"https://youtu.be/{vid}",
+        "duration": 600,
     }
 
 
@@ -67,11 +76,19 @@ VIDEOS = [
 ]
 
 
-def _analyze(videos: list[dict], channel: dict = CHANNEL):
+def _analyze(videos: list[dict], channel: dict = CHANNEL, transcripts=None):
     with tempfile.TemporaryDirectory() as tmp:
         db = Path(tmp) / "t.db"
-        _write_db(db, channel, videos)
+        _write_db(db, channel, videos, transcripts)
         return analyze_channel(channel["channel_id"], db_path=db, now=NOW)
+
+
+def _feature_group(findings, category: str):
+    return next(g for g in findings.feature_groups if g.category == category)
+
+
+def _corpus_group(findings, label: str):
+    return next(g for g in findings.corpus_groups if g.label == label)
 
 
 class OutlierTests(unittest.TestCase):
@@ -85,6 +102,7 @@ class OutlierTests(unittest.TestCase):
     def test_baseline_and_difference_are_derived(self) -> None:
         f = _analyze(VIDEOS)
         self.assertEqual(f.outliers.baseline_views_per_day, 100.0)
+        self.assertEqual(f.outliers.baseline_basis_n, 3)
         top = f.outliers.ranking[0]
         self.assertAlmostEqual(top.views_per_day, 200.0)
         self.assertAlmostEqual(top.difference_views_per_day, 100.0)  # 200 - 100
@@ -102,16 +120,18 @@ class OutlierTests(unittest.TestCase):
         self.assertEqual(f.outliers.baseline_views_per_day, 100.0)
 
 
-class TitleTests(unittest.TestCase):
-    def test_above_and_below_groups_split_on_baseline(self) -> None:
+class FeatureGroupTests(unittest.TestCase):
+    def test_title_family_is_discovered_and_split_on_baseline(self) -> None:
         f = _analyze(VIDEOS)
+        title = _feature_group(f, "title")
         # v3 (2.0x) and v1 (1.0x) at/above baseline; v2 (0.5x) below.
-        self.assertEqual(f.titles.above_n, 2)
-        self.assertEqual(f.titles.below_n, 1)
+        self.assertEqual(title.above_n, 2)
+        self.assertEqual(title.below_n, 1)
+        self.assertEqual(title.label, "Title patterns")
 
     def test_title_length_comparison_is_reported_with_group_sizes(self) -> None:
         f = _analyze(VIDEOS)
-        by_metric = {c.metric: c for c in f.titles.features}
+        by_metric = {c.metric: c for c in _feature_group(f, "title").features}
         self.assertIn("title_length", by_metric)
         length = by_metric["title_length"]
         # The one below-baseline video has the long title.
@@ -119,10 +139,24 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(length.above_n, 2)
         self.assertEqual(length.below_n, 1)
 
+    def test_non_informative_comparisons_are_dropped(self) -> None:
+        # Every title here has a colon and no question mark, so title_has_colon and
+        # title_has_question are constant across the split — no signal, so they are not
+        # reported (Part D), while title_length (which varies) is.
+        videos = [
+            _video("v1", "20260101", 1_000, "Alpha: short"),
+            _video("v2", "20251222", 1_000, "Beta: a much much longer title here"),
+            _video("v3", "20251212", 6_000, "Gamma: win"),
+        ]
+        metrics = {c.metric for c in _feature_group(_analyze(videos), "title").features}
+        self.assertIn("title_length", metrics)
+        self.assertNotIn("title_has_colon", metrics)
+        self.assertNotIn("title_has_question", metrics)
+
     def test_effect_size_withheld_for_small_groups(self) -> None:
         # #42: at 2 vs 1 the effect size is noise; means/difference stay, d is withheld.
         f = _analyze(VIDEOS)
-        for c in f.titles.features:
+        for c in _feature_group(f, "title").features:
             self.assertIsNone(c.effect_size)
             self.assertIsNotNone(c.difference)  # descriptive facts still reported
 
@@ -134,11 +168,102 @@ class TitleTests(unittest.TestCase):
             _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
             for i in range(10)
         ]
-        f = _analyze(videos)
-        length = {c.metric: c for c in f.titles.features}["title_length"]
+        length = {
+            c.metric: c for c in _feature_group(_analyze(videos), "title").features
+        }["title_length"]
         self.assertEqual(length.above_n, 5)
         self.assertEqual(length.below_n, 5)
         self.assertIsNotNone(length.effect_size)
+
+
+class GroupingTests(unittest.TestCase):
+    def test_small_samples_compare_against_the_baseline(self) -> None:
+        # Three videos: a quarter would be one video per side, so the whole sample is
+        # used and the grouping says so plainly.
+        group = _feature_group(_analyze(VIDEOS), "title")
+        self.assertEqual(group.grouping, "above vs below the channel baseline")
+        self.assertEqual(group.above_n + group.below_n, 3)
+
+    def test_large_samples_compare_the_extremes(self) -> None:
+        # Twenty videos: the middle is discarded and the clear cases are contrasted,
+        # which is what makes the separation worth measuring.
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        group = _feature_group(_analyze(videos), "title")
+        self.assertEqual(group.grouping, "top 5 vs bottom 5 of 20 videos")
+        self.assertEqual(group.above_n, 5)
+        self.assertEqual(group.below_n, 5)
+
+    def test_grouping_is_deterministic(self) -> None:
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        first = _feature_group(_analyze(videos), "title")
+        second = _feature_group(_analyze(videos), "title")
+        self.assertEqual(first.features, second.features)
+
+
+class FilteringTests(unittest.TestCase):
+    def test_negligible_differences_are_not_reported(self) -> None:
+        # Titles differ by one character across twenty videos: real, but far too small
+        # to be worth a creator's attention (Part G).
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "x" * (40 + i % 2))
+            for i in range(20)
+        ]
+        groups = {g.category for g in _analyze(videos).feature_groups}
+        self.assertNotIn("title", groups)
+
+    def test_every_reported_comparison_carries_a_strength(self) -> None:
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        for group in _analyze(videos).feature_groups:
+            for c in group.features:
+                with self.subTest(metric=c.metric):
+                    self.assertIn(c.strength, ("weak", "moderate", "strong"))
+
+
+class CorpusTests(unittest.TestCase):
+    def test_recurring_title_phrase_is_surfaced(self) -> None:
+        # "scary stories" recurs across four of five titles -> corpus evidence.
+        videos = [
+            _video("v1", "20260101", 1_000, "Scary stories one"),
+            _video("v2", "20251222", 1_000, "Scary stories two"),
+            _video("v3", "20251212", 1_000, "Scary stories three"),
+            _video("v4", "20251202", 1_000, "Scary stories four"),
+            _video("v5", "20251122", 1_000, "Something completely different"),
+        ]
+        phrases = {
+            p.text
+            for p in _corpus_group(
+                _analyze(videos), "Words you reuse in titles"
+            ).phrases
+        }
+        self.assertIn("scary stories", phrases)
+
+    def test_transcript_openings_become_corpus_evidence(self) -> None:
+        transcripts = {
+            v["video_id"]: "welcome back everyone to the channel" for v in VIDEOS
+        }
+        f = _analyze(VIDEOS, transcripts=transcripts)
+        openings = _corpus_group(f, "How you open")
+        self.assertEqual(openings.basis_n, 3)
+        self.assertTrue(any("welcome back" in p.text for p in openings.phrases))
+        # Fewer than the full sample of videos carry text -> the shortfall is stated.
+        self.assertIsNone(openings.coverage_note)  # here all 3 have transcripts
+
+    def test_absent_transcripts_yield_no_corpus_group(self) -> None:
+        # No transcripts at all -> the transcript-based families simply do not appear
+        # (ADR-009: quiet absence, never an empty or invented section).
+        f = _analyze(VIDEOS)
+        labels = {g.label for g in f.corpus_groups}
+        self.assertNotIn("How you open", labels)
+        self.assertNotIn("Phrases you repeat", labels)
 
 
 class CadenceTests(unittest.TestCase):
@@ -162,7 +287,8 @@ class CadenceTests(unittest.TestCase):
 class ContractTests(unittest.TestCase):
     def test_every_finding_group_carries_a_sample_size_and_confidence(self) -> None:
         f = _analyze(VIDEOS)
-        for group in (f.outliers, f.titles, f.cadence):
+        groups = [f.outliers, f.cadence, *f.feature_groups, *f.corpus_groups]
+        for group in groups:
             self.assertIsInstance(group.sample_size, int)
             self.assertIn(group.confidence.level, ("low", "moderate", "reasonable"))
             self.assertTrue(group.confidence.reason)

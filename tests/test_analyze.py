@@ -13,6 +13,10 @@ from pathlib import Path
 from unittest import mock
 
 from creatoros import analyze
+from youtube_transcript_api._errors import (
+    TranscriptsDisabled,
+    YouTubeTranscriptApiException,
+)
 from yt_dlp.utils import DownloadError
 
 URL = "https://youtube.com/@demo"
@@ -122,28 +126,130 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(text, "hello world")
 
 
+class _Disabled(TranscriptsDisabled):
+    """A permanent 'this video has no captions' error, constructed without arguments."""
+
+    def __init__(self) -> None:  # noqa: D107 — a test double, not a real error
+        pass
+
+
+class _Transient(YouTubeTranscriptApiException):
+    """A transient library failure (rate limit, upstream hiccup)."""
+
+    def __init__(self) -> None:  # noqa: D107 — a test double, not a real error
+        pass
+
+
+def _track(text: str, *, generated: bool, language: str = "en") -> mock.MagicMock:
+    """A caption track whose ``fetch()`` yields one snippet per word."""
+    fetched = mock.MagicMock()
+    fetched.to_raw_data.return_value = [
+        {"text": word, "start": float(i), "duration": 1.0}
+        for i, word in enumerate(text.split())
+    ]
+    fetched.language_code = language
+    fetched.is_generated = generated
+    track = mock.MagicMock()
+    track.is_generated = generated
+    track.fetch.return_value = fetched
+    return track
+
+
 class TranscriptTests(unittest.TestCase):
     @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
-    def test_missing_transcript_returns_none(self, mock_api):
-        mock_api.return_value.fetch.side_effect = Exception("Subtitles are disabled")
-        self.assertIsNone(analyze.fetch_transcript("vid1"))
-
-    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
     def test_transcript_success(self, mock_api):
-        fetched = mock.MagicMock()
-        fetched.to_raw_data.return_value = [
-            {"text": "hello", "start": 0.0, "duration": 1.0},
-            {"text": "world", "start": 1.0, "duration": 1.0},
-        ]
-        fetched.language_code = "en"
-        fetched.is_generated = True
-        mock_api.return_value.fetch.return_value = fetched
+        listing = mock.MagicMock()
+        listing.find_manually_created_transcript.return_value = _track(
+            "hello world", generated=False
+        )
+        mock_api.return_value.list.return_value = listing
 
         result = analyze.fetch_transcript("vid1")
         self.assertEqual(result["language"], "en")
         self.assertEqual(result["segment_count"], 2)
         self.assertEqual(result["text"], "hello world")
+        self.assertEqual(result["is_generated"], 0)
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_prefers_a_human_written_track_over_a_generated_one(self, mock_api):
+        # A human caption track has real punctuation and no recognition noise, so it is
+        # materially better evidence — it must win whenever it exists.
+        listing = mock.MagicMock()
+        listing.find_manually_created_transcript.return_value = _track(
+            "written by a person", generated=False
+        )
+        listing.find_generated_transcript.return_value = _track(
+            "made by a machine", generated=True
+        )
+        mock_api.return_value.list.return_value = listing
+
+        result = analyze.fetch_transcript("vid1")
+        self.assertEqual(result["text"], "written by a person")
+        self.assertEqual(result["is_generated"], 0)
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_falls_back_to_a_generated_track(self, mock_api):
+        listing = mock.MagicMock()
+        listing.find_manually_created_transcript.side_effect = _Transient()
+        listing.find_generated_transcript.return_value = _track(
+            "made by a machine", generated=True
+        )
+        mock_api.return_value.list.return_value = listing
+
+        result = analyze.fetch_transcript("vid1")
+        self.assertEqual(result["text"], "made by a machine")
         self.assertEqual(result["is_generated"], 1)
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_captions_disabled_is_permanent_and_not_retried(self, mock_api):
+        mock_api.return_value.list.side_effect = _Disabled()
+        record, status = analyze.fetch_transcript_with_status(
+            "vid1", sleep=lambda _: None
+        )
+        self.assertIsNone(record)
+        self.assertEqual(status, "unavailable")
+        # Permanent means permanent: asking again would not change the answer.
+        self.assertEqual(mock_api.return_value.list.call_count, 1)
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_transient_failure_is_retried_then_reported_as_blocked(self, mock_api):
+        # A rate limit is not "this video has no captions". Reporting it that way
+        # destroys transcript coverage for whole channels, so it is retried and, if it
+        # still fails, reported as blocked rather than unavailable.
+        mock_api.return_value.list.side_effect = _Transient()
+        slept: list[float] = []
+        record, status = analyze.fetch_transcript_with_status(
+            "vid1", sleep=slept.append
+        )
+        self.assertIsNone(record)
+        self.assertEqual(status, "blocked")
+        self.assertEqual(mock_api.return_value.list.call_count, 3)
+        self.assertEqual(slept, [2.0, 5.0])
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_a_transient_failure_that_recovers_returns_the_transcript(self, mock_api):
+        listing = mock.MagicMock()
+        listing.find_manually_created_transcript.return_value = _track(
+            "second time lucky", generated=False
+        )
+        mock_api.return_value.list.side_effect = [_Transient(), listing]
+
+        record, status = analyze.fetch_transcript_with_status(
+            "vid1", sleep=lambda _: None
+        )
+        self.assertEqual(status, "ok")
+        self.assertEqual(record["text"], "second time lucky")
+
+    @mock.patch("creatoros.analyze.YouTubeTranscriptApi")
+    def test_an_empty_caption_track_is_not_a_transcript(self, mock_api):
+        # A track that exists but carries no words would claim coverage the data does
+        # not have (ADR-009: never overstate).
+        listing = mock.MagicMock()
+        listing.find_manually_created_transcript.return_value = _track(
+            "", generated=False
+        )
+        mock_api.return_value.list.return_value = listing
+        self.assertIsNone(analyze.fetch_transcript("vid1"))
 
 
 class IntegrationTests(unittest.TestCase):
@@ -163,7 +269,8 @@ class IntegrationTests(unittest.TestCase):
                     "creatoros.analyze.fetch_channel", return_value=(CHANNEL, VIDEOS)
                 ),
                 mock.patch(
-                    "creatoros.analyze.fetch_transcript", return_value=transcript
+                    "creatoros.analyze.fetch_transcript_with_status",
+                    return_value=(transcript, "ok"),
                 ),
             ):
                 report = analyze.run(URL, db_path=db, output_dir=out)
@@ -267,7 +374,8 @@ class IngestTests(unittest.TestCase):
                     "creatoros.analyze.fetch_channel", return_value=(CHANNEL, VIDEOS)
                 ),
                 mock.patch(
-                    "creatoros.analyze.fetch_transcript", return_value=transcript
+                    "creatoros.analyze.fetch_transcript_with_status",
+                    return_value=(transcript, "ok"),
                 ),
             ):
                 channel, videos, transcripts = analyze.ingest(URL, db_path=db)
@@ -288,7 +396,10 @@ class IngestTests(unittest.TestCase):
                 mock.patch(
                     "creatoros.analyze.fetch_channel", return_value=(CHANNEL, VIDEOS)
                 ),
-                mock.patch("creatoros.analyze.fetch_transcript", return_value=None),
+                mock.patch(
+                    "creatoros.analyze.fetch_transcript_with_status",
+                    return_value=(None, "unavailable"),
+                ),
             ):
                 _, videos, transcripts = analyze.ingest(URL, db_path=db)
         self.assertEqual(len(videos), 1)

@@ -8,11 +8,23 @@ Refactoring is expected after the MVP.
 from __future__ import annotations
 
 import sqlite3
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import yt_dlp
+from requests.exceptions import RequestException
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import (
+    AgeRestricted,
+    InvalidVideoId,
+    NoTranscriptFound,
+    TranscriptsDisabled,
+    VideoUnavailable,
+    VideoUnplayable,
+    YouTubeTranscriptApiException,
+)
 from yt_dlp.utils import DownloadError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,6 +33,26 @@ OUTPUT_DIR = REPO_ROOT / "output" / "reports"
 # Sample size per channel. Correlations over a handful of videos are noise; the
 # intelligence module needs a real sample. Override with `--limit`.
 DEFAULT_VIDEO_LIMIT = 50
+
+# Caption languages to prefer, best first. The corpus lexicons (openings, CTAs,
+# markers) are English-only today, so a non-English track would produce misleading
+# "no recurring pattern" evidence rather than honest absence.
+_PREFERRED_LANGUAGES = ("en", "en-US", "en-GB")
+
+# Errors that mean this video will never have a transcript, however many times we ask.
+# Everything else from the library is treated as transient and retried.
+_PERMANENT_TRANSCRIPT_ERRORS = (
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    VideoUnplayable,
+    AgeRestricted,
+    InvalidVideoId,
+)
+
+# Pause before each retry. The trailing 0 is the final attempt (no pause after it).
+# Fixed, not random, so a run is reproducible.
+_TRANSCRIPT_BACKOFF_SECONDS = (2.0, 5.0, 0.0)
 
 
 class AnalyzeError(Exception):
@@ -118,29 +150,87 @@ def fetch_channel(
     return channel, videos
 
 
-def fetch_transcript(video_id: str) -> dict | None:
-    """Fetch a video's transcript, or ``None`` if none is available.
+def _select_transcript(listing):
+    """Pick the best available transcript: human-written English first.
 
-    Captions fail in many ways (disabled, missing, IP-blocked); for the MVP we treat
-    every failure the same — no transcript — and keep going.
+    A hand-written caption track is materially better evidence than an auto-generated
+    one — it has real punctuation and no speech-recognition noise — and English is the
+    only language the corpus lexicons are calibrated for today. Preference order:
+    manual English, generated English, any manual, any generated. Returns ``None`` when
+    the listing holds nothing usable.
     """
-    try:
-        fetched = YouTubeTranscriptApi().fetch(video_id)
-    except Exception:  # noqa: BLE001 — captions fail in many normal ways; treat all alike
-        # Silent by design. A per-video print here dumps the transcript library's
-        # multi-line error/help text for *every* failure, filling the console on a run
-        # where captions are simply disabled (issue #40). The caller emits one grouped
-        # summary line instead — ADR-009: warnings calm and grouped, retries invisible.
-        return None
+    for finder in (
+        listing.find_manually_created_transcript,
+        listing.find_generated_transcript,
+    ):
+        try:
+            return finder(_PREFERRED_LANGUAGES)
+        except YouTubeTranscriptApiException:
+            continue
+    manual = [t for t in listing if not t.is_generated]
+    return next(iter(manual or list(listing)), None)
 
+
+def _fetch_transcript_once(video_id: str) -> dict | None:
+    """One attempt: select the best track and return its record, or ``None``."""
+    listing = YouTubeTranscriptApi().list(video_id)
+    transcript = _select_transcript(listing)
+    if transcript is None:
+        return None
+    fetched = transcript.fetch()
     snippets = fetched.to_raw_data()
+    text = " ".join(s["text"] for s in snippets).strip()
+    if not text:
+        # A caption track that exists but carries no words is not evidence. Storing it
+        # would claim coverage the data does not have (ADR-009: never overstate).
+        return None
     return {
         "video_id": video_id,
         "language": getattr(fetched, "language_code", None),
         "is_generated": int(bool(getattr(fetched, "is_generated", False))),
         "segment_count": len(snippets),
-        "text": " ".join(s["text"] for s in snippets),
+        "text": text,
     }
+
+
+def fetch_transcript_with_status(
+    video_id: str, sleep: Callable[[float], None] = time.sleep
+) -> tuple[dict | None, str]:
+    """Fetch a transcript and say *why* if there isn't one.
+
+    Returns ``(record, status)`` where status is ``"ok"``, ``"unavailable"`` (the video
+    genuinely has no captions), or ``"blocked"`` (a transient refusal — rate limit,
+    network, upstream failure).
+
+    The distinction matters: a burst of requests gets rate-limited, and treating that as
+    "this video has no captions" silently destroys transcript coverage for channels
+    and reports the loss as if it were the data's fault. Transient failures are retried
+    with a widening pause; permanent ones return immediately. ``sleep`` is injected so
+    tests never wait.
+    """
+    for pause in _TRANSCRIPT_BACKOFF_SECONDS:
+        try:
+            return _fetch_transcript_once(video_id), "ok"
+        except _PERMANENT_TRANSCRIPT_ERRORS:
+            # The video genuinely has no usable captions. Nothing to retry.
+            return None, "unavailable"
+        except (YouTubeTranscriptApiException, RequestException):
+            # Transient: rate limited, blocked, or a network hiccup. Back off and retry.
+            if pause:
+                sleep(pause)
+    return None, "blocked"
+
+
+def fetch_transcript(video_id: str) -> dict | None:
+    """Fetch a video's best transcript, or ``None`` if none could be retrieved.
+
+    Silent by design: a per-video print here dumps the transcript library's multi-line
+    error text for *every* failure, filling the console on a run where captions are
+    disabled (issue #40). The caller emits one grouped summary line instead — ADR-009:
+    warnings calm and grouped, retries invisible.
+    """
+    record, _status = fetch_transcript_with_status(video_id)
+    return record
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -315,10 +405,21 @@ def ingest(
     """
     channel, videos = fetch_channel(channel_url, limit=limit)
     transcripts: list[dict] = []
+    blocked = 0
     for v in videos:
-        transcript = fetch_transcript(v["video_id"])
+        transcript, status = fetch_transcript_with_status(v["video_id"])
         if transcript:
             transcripts.append(transcript)
+        elif status == "blocked":
+            blocked += 1
+    if blocked:
+        # One grouped line, never one per video (ADR-009). Said plainly because a
+        # rate-limited run yields thinner evidence than the channel actually supports —
+        # the reader must not read the gap as "this creator has no captions".
+        print(
+            f"  note: {blocked} transcript(s) could not be retrieved this run "
+            "(rate limited or network); re-running will fill them in."
+        )
     save(channel, videos, transcripts, db_path=db_path)
     return channel, videos, transcripts
 

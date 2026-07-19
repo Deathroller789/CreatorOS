@@ -13,8 +13,11 @@ from importlib.metadata import PackageNotFoundError, version
 from creatoros.intelligence.findings import ChannelFindings
 
 # Bump when the *structure* of a report changes (fields added/removed/renamed), so a
-# stored report can be read against the right expectations.
-REPORT_FORMAT_VERSION = 1
+# stored report reads against the right expectations. v2: evidence-group findings —
+# discovered feature groups and corpus (recurring-phrase) groups; baseline gained its
+# settled basis and spread (ADR-008, additive schema evolution). v3: evidence strength
+# on every comparison and phrase, creator-facing labels, and the grouping used.
+REPORT_FORMAT_VERSION = 3
 
 # Stated in every report, in every format. Confidence here is a statement about evidence
 # quality (sample size) — never a probability of a future outcome.
@@ -46,12 +49,19 @@ def _package_version() -> str:
 
 
 def _overall_confidence(findings: ChannelFindings) -> str:
-    """The most conservative confidence level across the report's finding groups."""
-    groups = (findings.outliers, findings.titles, findings.cadence)
-    return min(
-        (g.confidence.level for g in groups),
-        key=lambda level: _LEVEL_ORDER.get(level, 0),
-    )
+    """The most conservative confidence level across the report's primary groups.
+
+    Performance, cadence, and the scalar feature groups all rest on the full sample, so
+    they set the report's headline confidence. Corpus groups carry their own (often
+    thinner, transcript-limited) confidence inline and are excluded here, so a channel
+    with rich metadata but few transcripts is not mislabeled low overall.
+    """
+    levels = [
+        findings.outliers.confidence.level,
+        findings.cadence.confidence.level,
+        *(g.confidence.level for g in findings.feature_groups),
+    ]
+    return min(levels, key=lambda level: _LEVEL_ORDER.get(level, 0))
 
 
 def build_metadata(

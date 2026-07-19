@@ -2,37 +2,44 @@
 
 _This report is descriptive, not predictive._
 
-## Report
+## About this report
 
-- **CreatorOS version:** 0.0.0-test
-- **Metric engine version:** 0.0.0-test
-- **Report format:** v1
-- **Generated:** 2026-01-11T00:00:00+00:00
 - **Channel:** Test Channel (`UC1`)
-- **Sample size:** 3 videos
-- **Confidence:** low (evidence quality) — n=3: too small.
+- **Videos analysed:** 3
+- **Evidence quality:** low — n=3: too small.
+- **Generated:** 2026-01-11T00:00:00+00:00
+- **CreatorOS version:** 0.0.0-test · engine 0.0.0-test · report format v3
 
-## Outliers
+## Performance
 
-Baseline **≈100 views/day** across the 3 sampled videos. ⚠ Small sample — this baseline is volatile and shifts with `--limit`.
+A typical video earns about **100 views/day** — the middle of 3 settled videos; most sit between 60.0 and 175 views/day. ⚠ Small sample — this baseline is volatile and shifts with `--limit`.
 
-| Video | Performance | Views/day | vs baseline |
+| Video | vs typical | Views/day | Difference |
 | --- | --- | --- | --- |
 | [Big \| win](https://y/v3) | 2.00x | 200 | +100 |
 | [Short](https://y/v1) | 1.00x | 100 | +0 |
 | [Longer title](https://y/v2) | 0.50x | 50 | -50 |
 
-## Title characteristics
+## Title patterns
 
-Above baseline: 2 · below baseline: 1.
+Comparing above vs below the channel baseline.
 
-| Metric | Above mean | Below mean | Difference | Effect size (d) | n |
-| --- | --- | --- | --- | --- | --- |
-| title_length (characters) | 5.0 | 12.0 | -7.0 | -0.90 | 2/1 |
+| Pattern | Stronger videos | Weaker videos | Difference | Strength |
+| --- | --- | --- | --- | --- |
+| Title length | 5.0 | 12.0 | -7.0 | weak |
 
-_Correlation is not causation; several features are compared, so treat any single difference cautiously._
+_These are differences that accompany performance, not causes of it. Several patterns are compared, so treat any single one cautiously._
 
-## Cadence
+## Words you reuse in titles
 
-Uploads are **regular** — median gap 10 days, longest 10 days, consistency (CV) 0.00. n=3 dated videos · confidence: moderate.
+Found across 3 videos.
+
+| Phrase | In videos | Strength |
+| --- | --- | --- |
+| big win | 2 of 3 | moderate |
+| title | 2 of 3 | moderate |
+
+## Publishing rhythm
+
+Uploads are **regular** — typically every 10 days, with the longest gap 10 days. Based on 3 dated videos · confidence: moderate.
 
