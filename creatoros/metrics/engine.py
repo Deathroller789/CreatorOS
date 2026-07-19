@@ -34,18 +34,28 @@ class Metric:
     unit: str
     depends_on: tuple[str, ...]
     fn: Callable[..., Any]
+    # Optional grouping so a consumer can request a family of metrics ("title", ...)
+    # by kind instead of naming each one — the roadmap-#19 category, kept additive. A
+    # metric with no category simply belongs to no family. Defaulted last so existing
+    # positional Metric(...) construction is unaffected.
+    category: str | None = None
 
 
 _REGISTRY: dict[str, Metric] = {}
 
 
 def metric(
-    *, scope: Scope, unit: str, depends_on: Iterable[str] = ()
+    *,
+    scope: Scope,
+    unit: str,
+    depends_on: Iterable[str] = (),
+    category: str | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Register the decorated pure function as a derived metric.
 
     The function's parameter names must match ``depends_on`` exactly, in order — that is
     the whole contract, and it is checked at import time so a typo fails loudly.
+    ``category`` optionally groups the metric into a family (e.g. ``"title"``).
     """
     deps = tuple(depends_on)
 
@@ -63,15 +73,22 @@ def metric(
                 f"metric {name!r}: parameters {params} must match "
                 f"depends_on {deps} exactly, in order"
             )
-        _REGISTRY[name] = Metric(name, scope, unit, deps, fn)
+        _REGISTRY[name] = Metric(name, scope, unit, deps, fn, category=category)
         return fn
 
     return decorate
 
 
-def registry() -> dict[str, Metric]:
-    """Return a copy of every registered metric, keyed by name."""
-    return dict(_REGISTRY)
+def registry(category: str | None = None) -> dict[str, Metric]:
+    """Return registered metrics keyed by name.
+
+    With ``category`` set, return only the metrics in that family — so a consumer can
+    ask for "every title metric" without hard-coding their names (ADR-006: adding a
+    metric to a family must not require editing the code that consumes the family).
+    """
+    if category is None:
+        return dict(_REGISTRY)
+    return {name: m for name, m in _REGISTRY.items() if m.category == category}
 
 
 @dataclass(frozen=True, slots=True)

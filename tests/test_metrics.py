@@ -55,6 +55,26 @@ class RegistryTests(unittest.TestCase):
                 self.assertTrue(m.unit, f"{name} has no unit")
                 self.assertIn(m.scope, ("video", "channel"))
 
+    def test_category_filter_returns_only_that_family(self) -> None:
+        title = registry(category="title")
+        # Every returned metric is tagged "title"...
+        self.assertTrue(title)
+        for name, m in title.items():
+            self.assertEqual(m.category, "title", name)
+        # ...and it includes both the original and the new structural title metrics,
+        # so Q2 picks them up by category without naming them.
+        self.assertLessEqual(
+            {
+                "title_length",
+                "title_word_count",
+                "title_has_number",
+                "title_caps_ratio",
+            },
+            set(title),
+        )
+        # A performance metric is not a title metric.
+        self.assertNotIn("performance_index", title)
+
     def test_parameters_must_match_declared_dependencies(self) -> None:
         with self.assertRaises(MetricError):
 
@@ -113,6 +133,32 @@ class MetricTests(unittest.TestCase):
         derived = compute(CHANNEL, VIDEOS, now=NOW)
         self.assertEqual(derived.videos["v1"]["title_length"], len("Ten days old"))
         self.assertEqual(derived.videos["v1"]["title_word_count"], 3)
+
+    def test_title_structure_evidence_metrics(self) -> None:
+        videos = [
+            _video("a", "20260101", 100, "5 Ways to WIN: The Guide (2026)"),
+            _video("b", "20260101", 100, "why did this happen?"),
+            _video("c", "20260101", 100, "plain title"),
+        ]
+        d = compute(CHANNEL, videos, now=NOW).videos
+        # "5 Ways to WIN: The Guide (2026)"
+        self.assertEqual(d["a"]["title_has_number"], 1)
+        self.assertEqual(d["a"]["title_starts_with_number"], 1)
+        self.assertEqual(d["a"]["title_has_colon"], 1)
+        self.assertEqual(d["a"]["title_has_brackets"], 1)
+        self.assertEqual(d["a"]["title_has_question"], 0)
+        # "why did this happen?"
+        self.assertEqual(d["b"]["title_has_question"], 1)
+        self.assertEqual(d["b"]["title_starts_with_number"], 0)
+        # "plain title" — all lowercase, no structure
+        self.assertEqual(d["c"]["title_has_number"], 0)
+        self.assertEqual(d["c"]["title_caps_ratio"], 0.0)
+
+    def test_caps_ratio_is_none_without_letters(self) -> None:
+        d = compute(
+            CHANNEL, [_video("n", "20260101", 100, "12345 !!!")], now=NOW
+        ).videos
+        self.assertIsNone(d["n"]["title_caps_ratio"])
 
 
 class CadenceTests(unittest.TestCase):
