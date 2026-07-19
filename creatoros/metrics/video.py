@@ -163,22 +163,25 @@ def transcript_tokens(transcript_text: str | None) -> list[str] | None:
 @metric(
     scope="video",
     unit="tokens",
-    depends_on=("transcript_text",),
+    depends_on=("transcript_tokens",),
     category="corpus:opening",
 )
-def transcript_opening_tokens(transcript_text: str | None) -> list[str] | None:
-    """The first tokens of the transcript — where a recurring hook would live."""
-    tokens = tokenize(transcript_text)
-    return tokens[:_OPENING_TOKENS] or None
+def transcript_opening_tokens(transcript_tokens: list[str]) -> list[str] | None:
+    """The first tokens of the transcript — where a recurring hook would live.
+
+    Derived from ``transcript_tokens`` rather than re-tokenising the text: tokenising a
+    long transcript is the most expensive step in the pipeline, and the dependency graph
+    exists precisely so it happens once per video (ADR-006).
+    """
+    return transcript_tokens[:_OPENING_TOKENS] or None
 
 
 @metric(
     scope="video",
     unit="tokens",
-    depends_on=("transcript_text",),
+    depends_on=("transcript_tokens",),
     category="corpus:closing",
 )
-def transcript_closing_tokens(transcript_text: str | None) -> list[str] | None:
+def transcript_closing_tokens(transcript_tokens: list[str]) -> list[str] | None:
     """The last tokens of the transcript — where a recurring sign-off would live."""
-    tokens = tokenize(transcript_text)
-    return tokens[-_CLOSING_TOKENS:] or None
+    return transcript_tokens[-_CLOSING_TOKENS:] or None

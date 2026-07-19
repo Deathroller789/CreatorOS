@@ -54,7 +54,10 @@ def _mock_ingest(videos: list[dict], transcript: dict | None = None):
     """Patch the two network calls so ingest runs offline against ``videos``."""
     return (
         mock.patch("creatoros.analyze.fetch_channel", return_value=(CHANNEL, videos)),
-        mock.patch("creatoros.analyze.fetch_transcript", return_value=transcript),
+        mock.patch(
+            "creatoros.analyze.fetch_transcript_with_status",
+            return_value=(transcript, "ok" if transcript else "unavailable"),
+        ),
     )
 
 

@@ -25,13 +25,17 @@ def _video(
     view_count: int | None,
     title: str,
     transcript_text: str | None = None,
+    duration: int | None = 600,
 ) -> dict:
+    """A stored video row. Mirrors the real schema, including the optional columns
+    (transcript text, duration) the corpus and narrative metrics read."""
     return {
         "video_id": video_id,
         "upload_date": upload_date,
         "view_count": view_count,
         "title": title,
         "transcript_text": transcript_text,
+        "duration": duration,
     }
 
 

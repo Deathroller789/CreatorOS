@@ -3,7 +3,7 @@
   "metadata": {
     "creatoros_version": "0.0.0-test",
     "metric_engine_version": "0.0.0-test",
-    "report_format_version": 2,
+    "report_format_version": 3,
     "generated_at": "2026-01-11T00:00:00+00:00",
     "channel_id": "UC1",
     "channel_title": "Test Channel",
@@ -66,20 +66,23 @@
     "feature_groups": [
       {
         "category": "title",
-        "label": "Title evidence",
+        "label": "Title patterns",
+        "grouping": "above vs below the channel baseline",
         "sample_size": 3,
         "above_n": 2,
         "below_n": 1,
         "features": [
           {
             "metric": "title_length",
+            "label": "Title length",
             "unit": "characters",
             "above_mean": 5.0,
             "below_mean": 12.0,
             "difference": -7.0,
             "effect_size": -0.9,
             "above_n": 2,
-            "below_n": 1
+            "below_n": 1,
+            "strength": "weak"
           }
         ],
         "confidence": {
@@ -91,9 +94,11 @@
     "corpus_groups": [
       {
         "category": "corpus:title",
-        "label": "Recurring title phrases",
+        "label": "Words you reuse in titles",
         "basis_n": 3,
         "sample_size": 3,
+        "above_n": 0,
+        "below_n": 0,
         "phrases": [
           {
             "text": "big win",
@@ -101,7 +106,8 @@
             "document_count": 2,
             "document_ratio": 0.6666666666666666,
             "above_count": null,
-            "below_count": null
+            "below_count": null,
+            "strength": "moderate"
           },
           {
             "text": "title",
@@ -109,7 +115,8 @@
             "document_count": 2,
             "document_ratio": 0.6666666666666666,
             "above_count": null,
-            "below_count": null
+            "below_count": null,
+            "strength": "moderate"
           }
         ],
         "confidence": {

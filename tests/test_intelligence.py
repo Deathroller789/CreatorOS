@@ -27,7 +27,7 @@ def _write_db(
         )
         conn.execute(
             "CREATE TABLE videos (video_id TEXT, channel_id TEXT, title TEXT, "
-            "upload_date TEXT, view_count INTEGER, url TEXT)"
+            "upload_date TEXT, view_count INTEGER, url TEXT, duration INTEGER)"
         )
         conn.execute("CREATE TABLE transcripts (video_id TEXT, text TEXT)")
         conn.execute(
@@ -38,7 +38,7 @@ def _write_db(
         for v in videos:
             conn.execute(
                 "INSERT INTO videos VALUES (:video_id, :channel_id, :title, "
-                ":upload_date, :view_count, :url)",
+                ":upload_date, :view_count, :url, :duration)",
                 v,
             )
         for video_id, text in (transcripts or {}).items():
@@ -56,6 +56,7 @@ def _video(vid: str, upload_date: str, views: int | None, title: str) -> dict:
         "upload_date": upload_date,
         "view_count": views,
         "url": f"https://youtu.be/{vid}",
+        "duration": 600,
     }
 
 
@@ -126,7 +127,7 @@ class FeatureGroupTests(unittest.TestCase):
         # v3 (2.0x) and v1 (1.0x) at/above baseline; v2 (0.5x) below.
         self.assertEqual(title.above_n, 2)
         self.assertEqual(title.below_n, 1)
-        self.assertEqual(title.label, "Title evidence")
+        self.assertEqual(title.label, "Title patterns")
 
     def test_title_length_comparison_is_reported_with_group_sizes(self) -> None:
         f = _analyze(VIDEOS)
@@ -175,6 +176,58 @@ class FeatureGroupTests(unittest.TestCase):
         self.assertIsNotNone(length.effect_size)
 
 
+class GroupingTests(unittest.TestCase):
+    def test_small_samples_compare_against_the_baseline(self) -> None:
+        # Three videos: a quarter would be one video per side, so the whole sample is
+        # used and the grouping says so plainly.
+        group = _feature_group(_analyze(VIDEOS), "title")
+        self.assertEqual(group.grouping, "above vs below the channel baseline")
+        self.assertEqual(group.above_n + group.below_n, 3)
+
+    def test_large_samples_compare_the_extremes(self) -> None:
+        # Twenty videos: the middle is discarded and the clear cases are contrasted,
+        # which is what makes the separation worth measuring.
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        group = _feature_group(_analyze(videos), "title")
+        self.assertEqual(group.grouping, "top 5 vs bottom 5 of 20 videos")
+        self.assertEqual(group.above_n, 5)
+        self.assertEqual(group.below_n, 5)
+
+    def test_grouping_is_deterministic(self) -> None:
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        first = _feature_group(_analyze(videos), "title")
+        second = _feature_group(_analyze(videos), "title")
+        self.assertEqual(first.features, second.features)
+
+
+class FilteringTests(unittest.TestCase):
+    def test_negligible_differences_are_not_reported(self) -> None:
+        # Titles differ by one character across twenty videos: real, but far too small
+        # to be worth a creator's attention (Part G).
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "x" * (40 + i % 2))
+            for i in range(20)
+        ]
+        groups = {g.category for g in _analyze(videos).feature_groups}
+        self.assertNotIn("title", groups)
+
+    def test_every_reported_comparison_carries_a_strength(self) -> None:
+        videos = [
+            _video(f"v{i}", "20260101", (i + 1) * 100, "word " * (i + 1))
+            for i in range(20)
+        ]
+        for group in _analyze(videos).feature_groups:
+            for c in group.features:
+                with self.subTest(metric=c.metric):
+                    self.assertIn(c.strength, ("weak", "moderate", "strong"))
+
+
 class CorpusTests(unittest.TestCase):
     def test_recurring_title_phrase_is_surfaced(self) -> None:
         # "scary stories" recurs across four of five titles -> corpus evidence.
@@ -187,7 +240,9 @@ class CorpusTests(unittest.TestCase):
         ]
         phrases = {
             p.text
-            for p in _corpus_group(_analyze(videos), "Recurring title phrases").phrases
+            for p in _corpus_group(
+                _analyze(videos), "Words you reuse in titles"
+            ).phrases
         }
         self.assertIn("scary stories", phrases)
 
@@ -196,7 +251,7 @@ class CorpusTests(unittest.TestCase):
             v["video_id"]: "welcome back everyone to the channel" for v in VIDEOS
         }
         f = _analyze(VIDEOS, transcripts=transcripts)
-        openings = _corpus_group(f, "Recurring openings")
+        openings = _corpus_group(f, "How you open")
         self.assertEqual(openings.basis_n, 3)
         self.assertTrue(any("welcome back" in p.text for p in openings.phrases))
         # Fewer than the full sample of videos carry text -> the shortfall is stated.
@@ -207,8 +262,8 @@ class CorpusTests(unittest.TestCase):
         # (ADR-009: quiet absence, never an empty or invented section).
         f = _analyze(VIDEOS)
         labels = {g.label for g in f.corpus_groups}
-        self.assertNotIn("Recurring openings", labels)
-        self.assertNotIn("Recurring spoken phrases", labels)
+        self.assertNotIn("How you open", labels)
+        self.assertNotIn("Phrases you repeat", labels)
 
 
 class CadenceTests(unittest.TestCase):

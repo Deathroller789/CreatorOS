@@ -62,6 +62,17 @@ edit (ADR-006's promise, now realised for non-scalar evidence).
   token metric plus, if a bespoke shape is needed, a findings group — no engine work.
 - **Narrative evidence** (RFC-002's far-term class) fits the same seam: opening/ending token
   metrics already exist; richer sequence signals extend the same pattern.
+- **Two rules this shape implies**, both learned from implementing narrative evidence on
+  top of it and recorded here rather than in a new ADR
+  ([usage report](../../research/reports/phase_3_evidence_quality_usage.md)):
+  - *Optional raw fields.* A raw dependency absent from **every** record is a typo and
+    fails loudly; absent from **this** record it is ordinary missing data and propagates
+    as `None`. Without this, one metric reading an optional column (a transcript, a
+    duration) forces every loader and fixture to carry the key.
+  - *Shared derivations belong in the graph.* Tokenising a transcript is the pipeline's
+    most expensive step; a dozen narrative signals each re-tokenising it made metrics the
+    slowest stage. The dependency graph is the sharing mechanism — a metric that
+    recomputes a shared derivation is a smell, not a style choice.
 - **Revisit trigger:** if a future evidence class needs a *sequence*-shaped derived value
   that analysis cannot assemble from per-video metrics (e.g. cross-video alignment that must
   be reproducible and provenanced as a single fact), reopen this and consider a first-class

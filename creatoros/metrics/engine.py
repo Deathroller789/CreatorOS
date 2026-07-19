@@ -167,17 +167,21 @@ def _video_kwargs(
     raw: dict[str, Any],
     derived: dict[str, Any],
     channel_values: dict[str, Any],
+    known_fields: frozenset[str],
 ) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     for dep in m.depends_on:
         declared = metrics.get(dep)
         if declared is None:
-            if dep not in raw:
+            if dep not in known_fields:
                 raise MetricError(
                     f"metric {m.name!r} depends on {dep!r}, which is neither a "
-                    f"registered metric nor a raw field on the video"
+                    f"registered metric nor a raw field on any video"
                 )
-            kwargs[dep] = raw[dep]
+            # Present on some videos but not this one: that is missing data, not a
+            # mistake — an optional column (a transcript, a duration) is absent for
+            # this record only, and absence propagates as None (see ``compute``).
+            kwargs[dep] = raw.get(dep)
         elif declared.scope == "channel":
             kwargs[dep] = channel_values[dep]
         else:
@@ -236,6 +240,10 @@ def compute(
     channel_raw = {**channel, "now": now}
     channel_values: dict[str, Any] = {}
     video_values: dict[str, dict[str, Any]] = {v["video_id"]: {} for v in videos}
+    # The union of raw fields across the sample. A dependency naming none of them is a
+    # typo and fails loudly; one that some records carry and others lack is an optional
+    # field, and its absence is ordinary missing data.
+    known_fields = frozenset({"now", *(k for v in videos for k in v)})
 
     for m in _order(_select(metrics, only), metrics):
         if m.scope == "channel":
@@ -254,7 +262,9 @@ def compute(
         for v in videos:
             derived = video_values[v["video_id"]]
             raw = {**v, "now": now}
-            kwargs = _video_kwargs(m, metrics, raw, derived, channel_values)
+            kwargs = _video_kwargs(
+                m, metrics, raw, derived, channel_values, known_fields
+            )
             missing = any(value is None for value in kwargs.values())
             derived[m.name] = None if missing else m.fn(**kwargs)
 

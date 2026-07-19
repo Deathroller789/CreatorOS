@@ -81,9 +81,15 @@ class OutlierFindings:
 
 @dataclass(frozen=True, slots=True)
 class FeatureComparison:
-    """One scalar metric contrasted between above- and below-baseline videos."""
+    """One scalar metric contrasted between the stronger and weaker performance group.
+
+    ``label`` is the creator-facing name; ``metric`` keeps the registry name so the JSON
+    stays traceable to the code that produced it. ``strength`` states how well supported
+    the separation is, from measured quantities only (see ``strength.py``).
+    """
 
     metric: str
+    label: str
     unit: str
     above_mean: float
     below_mean: float
@@ -91,6 +97,7 @@ class FeatureComparison:
     effect_size: float | None  # Cohen's d; None if a group is too small to estimate
     above_n: int
     below_n: int
+    strength: str  # "weak" | "moderate" | "strong"
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +111,7 @@ class FeatureGroup:
 
     category: str
     label: str
+    grouping: str  # how the two groups were formed, in plain words
     sample_size: int
     above_n: int
     below_n: int
@@ -128,6 +136,7 @@ class CorpusPhrase:
     document_ratio: float
     above_count: int | None
     below_count: int | None
+    strength: str  # "weak" | "moderate" | "strong"
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +152,11 @@ class CorpusGroup:
     label: str
     basis_n: int
     sample_size: int
+    # Sizes of the two performance groups *among the videos that contributed text*, so a
+    # phrase's above/below counts have a denominator the reader can see. Zero when the
+    # split was withheld for being too small to compare.
+    above_n: int
+    below_n: int
     phrases: tuple[CorpusPhrase, ...]
     confidence: Confidence
     coverage_note: str | None
